@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum MatchStatus {
+  WAITING
+  IN_PROGRESS
+  FINISHED
+  ABANDONED
+}
+
+enum Pieces {
+  KING
+  QUEEN
+  ROOK
+  BISHOP
+  KNIGHT
+  PAWN
+}
+
+model Player {
+  id String @id @default(uuid())
+  nickname String 
+  username String @unique
+  hashedPassword String
+
+  tokens Token[]
+  messages Message[]
+  movements Movement[]
+
+  matchesAsWhite Match[] @relation("WhitePlayer")
+  matchesAsBlack Match[] @relation("BlackPlayer")
+  matchWins Match[] @relation("WinnerPlayer")
+  matchLosses Match[] @relation("LoserPlayer")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Token {
+  id Int @default(autoincrement()) @id
+  token String @unique
+
+  player Player @relation(fields: [playerID], references: [id], onDelete: Cascade)
+  playerID String
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([playerID])
+}
+
+model Message {
+  id Int @default(autoincrement()) @id
+  content String
+
+  player Player @relation(fields: [playerID], references: [id])
+  playerID String
+
+  createdAt DateTime @default(now())
+}
+
+model Match {
+  id String @id @default(uuid()) 
+  status MatchStatus @default(WAITING)
+  gameState Json @db.Json 
+
+  movements Movement[]
+
+  playerWhite Player? @relation("WhitePlayer", fields: [playerWhiteID], references: [id])
+  playerWhiteID String?
+  playerBlack Player? @relation("BlackPlayer", fields: [playerBlackID], references: [id])
+  playerBlackID String?
+
+  winner Player? @relation("WinnerPlayer", fields: [winnerID], references: [id])
+  winnerID String?
+  loser Player? @relation("LoserPlayer", fields: [loserID], references: [id])
+  loserID String?
+
+  createdAt DateTime @default(now())
+  startedAt DateTime?
+  endedAt DateTime?
+
+  @@index([status])
+}
+
+model Movement {
+  id Int @default(autoincrement()) @id
+  from String
+  to String
+  piece Pieces
+  promotion Pieces?
+  turnNumber Int
+
+  effects Json? @db.Json
+
+  match Match @relation(fields: [matchID], references: [id])
+  matchID String
+  player Player @relation(fields: [playerID], references: [id])
+  playerID String
+
+  createdAt DateTime @default(now())
+
+  @@index([matchID, turnNumber])
+}

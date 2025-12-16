@@ -1,0 +1,9 @@
+services:
+  db:
+    image: mysql
+    container_name: sql-database
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3005:3306"
