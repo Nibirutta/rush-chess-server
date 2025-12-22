@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { UserModule } from './user/user.module';
+import { PlayerModule } from './player/player.module';
 import { TokenModule } from './token/token.module';
 
 @Module({
-  imports: [UserModule, TokenModule],
+  imports: [PlayerModule, TokenModule],
 })
 export class AuthModule {}
