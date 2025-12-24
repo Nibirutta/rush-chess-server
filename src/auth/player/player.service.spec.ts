@@ -68,16 +68,17 @@ describe('PlayerService', () => {
     const updatePlayerDTO: UpdatePlayerDTO = {
       nickname: 'hehepotter',
       password: 'hisnameisforbidden',
-      username: 'marcus'
+      username: 'marcus',
     };
 
     const oldData: Player = {
       id: 'f22c1dad-6f5e-4cb0-a600-750f4d1fd976',
       nickname: 'happiness',
       username: 'gotchaya',
-      hashedPassword: '$2a$10$Ug14yIRSb7NL1NOmyE.N0u3XwnUZ0xPa1XFSScZOrQjomf90.rM42',
+      hashedPassword:
+        '$2a$10$Ug14yIRSb7NL1NOmyE.N0u3XwnUZ0xPa1XFSScZOrQjomf90.rM42',
       createdAt: new Date('2024-12-25T10:30:00Z'),
-      updatedAt: new Date('2024-12-27T11:04:00Z')
+      updatedAt: new Date('2024-12-27T11:04:00Z'),
     };
 
     it('should hash the password before send it to the database', async () => {
@@ -104,7 +105,9 @@ describe('PlayerService', () => {
     it('should throw an Error if player does not exist', async () => {
       databaseMock.player.update.mockRejectedValue(new Error());
 
-      await expect(playerService.updatePlayer('unknownID', updatePlayerDTO)).rejects.toThrow();
+      await expect(
+        playerService.updatePlayer('unknownID', updatePlayerDTO),
+      ).rejects.toThrow();
     });
   });
 

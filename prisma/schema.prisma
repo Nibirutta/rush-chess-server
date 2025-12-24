@@ -29,6 +29,12 @@ enum Pieces {
   PAWN
 }
 
+enum TokenType {
+  ACCESS
+  SESSION
+  RESET
+}
+
 model Player {
   id String @id @default(uuid())
   nickname String 
@@ -51,6 +57,7 @@ model Player {
 model Token {
   id Int @default(autoincrement()) @id
   token String @unique
+  type TokenType
 
   player Player @relation(fields: [playerID], references: [id], onDelete: Cascade)
   playerID String

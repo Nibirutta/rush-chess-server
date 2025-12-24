@@ -39,6 +39,6 @@ export class PlayerService {
   }
 
   async deletePlayer(id: string): Promise<Player> {
-    return await this.databaseService.player.delete({ where: { id }});
+    return await this.databaseService.player.delete({ where: { id } });
   }
 }
