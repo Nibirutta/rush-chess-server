@@ -3,22 +3,24 @@ import {
   ForbiddenException,
   NotImplementedException,
 } from '@nestjs/common';
-import { TokenType } from '../enums/token-type.enum';
+import { TokenType } from '../common/enums/token-type.enum';
 import {
   AccessTokenPayloadDto,
   SessionTokenPayloadDto,
   ResetTokenPayloadDto,
-} from '../contracts/token.dto';
+} from '../common/contracts/token.dto';
 import { DatabaseService } from 'src/database/database.service';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from 'src/generated/prisma/client';
 import { StringValue } from 'ms';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class TokenService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   private readonly tokenExpirations = {
@@ -104,16 +106,13 @@ export class TokenService {
           secret: this.getSecretByTokenType(tokenType),
         });
 
-        return {
-          isSecure: true,
-          decodedToken: decodedToken,
-        };
+        return decodedToken;
       } catch (error) {
         throw new ForbiddenException('Not allowed - invalid token');
       }
     } else {
       const foundToken = await this.databaseService.token.findUnique({
-        where: { token },
+        where: { token: token },
       });
 
       if (!foundToken) {
@@ -122,11 +121,18 @@ export class TokenService {
             secret: this.getSecretByTokenType(tokenType),
           });
 
-          return {
-            isSecure: false,
-            decodedToken: decodedToken,
-          };
-        } catch (error) {
+          const hackedUser = await this.databaseService.player.findUnique({
+            where: { id: decodedToken.id },
+          });
+
+          if (hackedUser) {
+            await this.databaseService.token.deleteMany({
+              where: { player: hackedUser },
+            });
+          }
+
+          return;
+        } finally {
           throw new ForbiddenException('Not allowed - invalid token');
         }
       }
@@ -136,10 +142,7 @@ export class TokenService {
           secret: this.getSecretByTokenType(tokenType),
         });
 
-        return {
-          isSecure: true,
-          decodedToken: decodedToken,
-        };
+        return decodedToken;
       } catch (error) {
         throw new ForbiddenException('Not allowed - invalid token');
       }
@@ -147,27 +150,27 @@ export class TokenService {
   }
 
   async deleteToken(token: string) {
-    return this.databaseService.token.delete({ where: { token } });
+    return this.databaseService.token.delete({ where: { token: token } });
   }
 
-  private getSecretByTokenType(tokenType: TokenType): string {
+  getSecretByTokenType(tokenType: TokenType): string {
     const secretMap = {
-      [TokenType.ACCESS]: process.env.ACCESS_TOKEN_SECRET,
-      [TokenType.SESSION]: process.env.SESSION_TOKEN_SECRET,
-      [TokenType.RESET]: process.env.RESET_TOKEN_SECRET,
+      [TokenType.ACCESS]: this.configService.get('ACCESS_TOKEN_SECRET'),
+      [TokenType.SESSION]: this.configService.get('SESSION_TOKEN_SECRET'),
+      [TokenType.RESET]: this.configService.get('RESET_TOKEN_SECRET'),
     };
 
     if (!secretMap[tokenType])
-      throw new NotImplementedException('Token keys are missing');
+      throw new NotImplementedException('Token key is missing');
 
     return secretMap[tokenType];
   }
 
-  private getTokenDuration(tokenType: TokenType): StringValue {
+  getTokenDuration(tokenType: TokenType): StringValue {
     return this.tokenExpirations[tokenType].duration;
   }
 
-  private getTokenExpirationDate(tokenType: TokenType): Date {
+  getTokenExpirationDate(tokenType: TokenType): Date {
     const expirationDate = new Date();
     expirationDate.setMinutes(
       expirationDate.getMinutes() + this.tokenExpirations[tokenType].minutes,
@@ -176,7 +179,7 @@ export class TokenService {
     return expirationDate;
   }
 
-  private getTokenMaxAge(tokenType: TokenType): number {
+  getTokenMaxAge(tokenType: TokenType): number {
     return this.tokenExpirations[tokenType].milliseconds;
   }
 }

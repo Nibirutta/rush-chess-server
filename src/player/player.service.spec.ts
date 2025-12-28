@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { DeepMockProxy, mockClear, mockDeep } from 'jest-mock-extended';
+import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PlayerService } from './player.service';
 import { DatabaseService } from 'src/database/database.service';
-import { CreatePlayerDTO } from '../contracts/create-player.dto';
+import { CreatePlayerDTO } from './contracts/create-player.dto';
 import { omit } from 'lodash';
 import * as bcrypt from 'bcrypt';
-import { UpdatePlayerDTO } from '../contracts/update-player.dto';
+import { UpdatePlayerDTO } from './contracts/update-player.dto';
 import { Player } from 'src/generated/prisma/client';
 
 describe('PlayerService', () => {
@@ -26,7 +26,6 @@ describe('PlayerService', () => {
     }).compile();
 
     playerService = module.get<PlayerService>(PlayerService);
-    mockClear(databaseMock);
   });
 
   it('should be defined', () => {
@@ -69,16 +68,6 @@ describe('PlayerService', () => {
       nickname: 'hehepotter',
       password: 'hisnameisforbidden',
       username: 'marcus',
-    };
-
-    const oldData: Player = {
-      id: 'f22c1dad-6f5e-4cb0-a600-750f4d1fd976',
-      nickname: 'happiness',
-      username: 'gotchaya',
-      hashedPassword:
-        '$2a$10$Ug14yIRSb7NL1NOmyE.N0u3XwnUZ0xPa1XFSScZOrQjomf90.rM42',
-      createdAt: new Date('2024-12-25T10:30:00Z'),
-      updatedAt: new Date('2024-12-27T11:04:00Z'),
     };
 
     it('should hash the password before send it to the database', async () => {

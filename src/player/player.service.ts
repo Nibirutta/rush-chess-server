@@ -2,13 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { Prisma, Player } from 'src/generated/prisma/client';
 import { omit } from 'lodash';
-import { CreatePlayerDTO } from '../contracts/create-player.dto';
-import { UpdatePlayerDTO } from '../contracts/update-player.dto';
+import { CreatePlayerDTO } from './contracts/create-player.dto';
+import { UpdatePlayerDTO } from './contracts/update-player.dto';
 import * as bcrypt from 'bcrypt';
+import { TokenService } from 'src/token/token.service';
 
 @Injectable()
 export class PlayerService {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly tokenService: TokenService,
+  ) {}
 
   async createPlayer(createPlayerDTO: CreatePlayerDTO): Promise<Player> {
     const hashedPassword = await bcrypt.hash(createPlayerDTO.password, 10);
@@ -34,11 +38,11 @@ export class PlayerService {
 
     return await this.databaseService.player.update({
       data: playerData,
-      where: { id },
+      where: { id: id },
     });
   }
 
   async deletePlayer(id: string): Promise<Player> {
-    return await this.databaseService.player.delete({ where: { id } });
+    return await this.databaseService.player.delete({ where: { id: id } });
   }
 }
