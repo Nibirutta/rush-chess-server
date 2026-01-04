@@ -117,6 +117,23 @@ describe('TokenService', () => {
       });
       expect(jwtService.signAsync).toHaveBeenCalledTimes(1);
     });
+
+    it('should return both access and session tokens', async () => {
+      const expectedValue = {
+        accessToken: 'token',
+        sessionToken: 'token',
+      };
+
+      jwtService.signAsync.mockResolvedValue('token');
+
+      const result = await tokenService.generateSessionTokens(
+        'randomID',
+        'randomNickname',
+      );
+
+      expect(result).toEqual(expectedValue);
+      expect(jwtService.signAsync).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('Token Validation', () => {

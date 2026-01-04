@@ -1,11 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
-import { Prisma, Player } from 'src/generated/prisma/client';
+import { Prisma } from 'src/generated/prisma/client';
 import { omit } from 'lodash';
 import { CreatePlayerDTO } from './contracts/create-player.dto';
 import { UpdatePlayerDTO } from './contracts/update-player.dto';
 import * as bcrypt from 'bcrypt';
 import { TokenService } from 'src/token/token.service';
+import { LoginPlayerDTO } from './contracts/login-player.dto';
 
 @Injectable()
 export class PlayerService {
@@ -14,7 +15,38 @@ export class PlayerService {
     private readonly tokenService: TokenService,
   ) {}
 
-  async createPlayer(createPlayerDTO: CreatePlayerDTO): Promise<Player> {
+  async login(loginPlayerDTO: LoginPlayerDTO) {
+    const foundPlayer = await this.databaseService.player.findUnique({
+      where: { username: loginPlayerDTO.username },
+    });
+
+    if (!foundPlayer) {
+      throw new UnauthorizedException('Username or password is invalid');
+    }
+
+    const isValidPassword = await bcrypt.compare(
+      loginPlayerDTO.password,
+      foundPlayer.hashedPassword,
+    );
+
+    if (!isValidPassword) {
+      throw new UnauthorizedException('Username or password is invalid');
+    }
+
+    const { accessToken, sessionToken } =
+      await this.tokenService.generateSessionTokens(
+        foundPlayer.id,
+        foundPlayer.nickname,
+      );
+
+    return {
+      player: foundPlayer,
+      accessToken,
+      sessionToken,
+    };
+  }
+
+  async createPlayer(createPlayerDTO: CreatePlayerDTO) {
     const hashedPassword = await bcrypt.hash(createPlayerDTO.password, 10);
 
     const playerData: Prisma.PlayerCreateInput = {
@@ -22,13 +54,24 @@ export class PlayerService {
       hashedPassword,
     };
 
-    return this.databaseService.player.create({ data: playerData });
+    const createdPlayer = await this.databaseService.player.create({
+      data: playerData,
+    });
+
+    const { accessToken, sessionToken } =
+      await this.tokenService.generateSessionTokens(
+        createdPlayer.id,
+        createdPlayer.nickname,
+      );
+
+    return {
+      player: createdPlayer,
+      accessToken,
+      sessionToken,
+    };
   }
 
-  async updatePlayer(
-    id: string,
-    updatePlayerDTO: UpdatePlayerDTO,
-  ): Promise<Player> {
+  async updatePlayer(id: string, updatePlayerDTO: UpdatePlayerDTO) {
     const playerData: Prisma.PlayerUpdateInput = {
       ...omit(updatePlayerDTO, ['password']),
       hashedPassword: updatePlayerDTO.password
@@ -36,13 +79,24 @@ export class PlayerService {
         : undefined,
     };
 
-    return await this.databaseService.player.update({
+    const updatedPlayer = await this.databaseService.player.update({
       data: playerData,
       where: { id: id },
     });
+    const { accessToken, sessionToken } =
+      await this.tokenService.generateSessionTokens(
+        updatedPlayer.id,
+        updatedPlayer.nickname,
+      );
+
+    return {
+      player: updatedPlayer,
+      accessToken,
+      sessionToken,
+    };
   }
 
-  async deletePlayer(id: string): Promise<Player> {
-    return await this.databaseService.player.delete({ where: { id: id } });
+  async deletePlayer(id: string) {
+    return this.databaseService.player.delete({ where: { id: id } });
   }
 }

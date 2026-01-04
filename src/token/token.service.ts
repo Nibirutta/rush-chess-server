@@ -99,6 +99,31 @@ export class TokenService {
     }
   }
 
+  async generateSessionTokens(id: string, nickname: string) {
+    const accessTokenPayloadDto: AccessTokenPayloadDto = {
+      id: id,
+      nickname: nickname,
+    };
+
+    const sessionTokenPayloadDto: SessionTokenPayloadDto = {
+      id: id,
+    };
+
+    const accessToken = await this.generateToken(
+      accessTokenPayloadDto,
+      TokenType.ACCESS,
+    );
+    const sessionToken = await this.generateToken(
+      sessionTokenPayloadDto,
+      TokenType.SESSION,
+    );
+
+    return {
+      accessToken,
+      sessionToken,
+    };
+  }
+
   async validateToken(token: string, tokenType: TokenType) {
     if (tokenType === TokenType.ACCESS) {
       try {
