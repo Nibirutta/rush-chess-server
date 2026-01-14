@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { Prisma } from 'src/generated/prisma/client';
 import { omit } from 'lodash';
@@ -7,6 +11,7 @@ import { UpdatePlayerDTO } from './contracts/update-player.dto';
 import * as bcrypt from 'bcrypt';
 import { TokenService } from 'src/token/token.service';
 import { LoginPlayerDTO } from './contracts/login-player.dto';
+import { TokenType } from 'src/common/enums/token-type.enum';
 
 @Injectable()
 export class PlayerService {
@@ -40,7 +45,34 @@ export class PlayerService {
       );
 
     return {
-      player: foundPlayer,
+      player: omit(foundPlayer, ['hashedPassword']),
+      accessToken,
+      sessionToken,
+    };
+  }
+
+  async refreshSession(cookie: string) {
+    const decodedToken = await this.tokenService.validateToken(
+      cookie,
+      TokenType.SESSION,
+    );
+    const foundPlayer = await this.databaseService.player.findUnique({
+      where: { id: decodedToken.id },
+    });
+
+    if (!foundPlayer)
+      throw new NotFoundException('Player does not exist anymore');
+
+    await this.tokenService.deleteToken(cookie); // Always returns a valid value
+
+    const { accessToken, sessionToken } =
+      await this.tokenService.generateSessionTokens(
+        foundPlayer.id,
+        foundPlayer.nickname,
+      );
+
+    return {
+      player: omit(foundPlayer, ['hashedPassword']),
       accessToken,
       sessionToken,
     };
@@ -65,7 +97,7 @@ export class PlayerService {
       );
 
     return {
-      player: createdPlayer,
+      player: omit(createdPlayer, ['hashedPassword']),
       accessToken,
       sessionToken,
     };
@@ -90,7 +122,7 @@ export class PlayerService {
       );
 
     return {
-      player: updatedPlayer,
+      player: omit(updatedPlayer, ['hashedPassword']),
       accessToken,
       sessionToken,
     };

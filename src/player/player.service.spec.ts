@@ -2,34 +2,53 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PlayerService } from './player.service';
 import { DatabaseService } from 'src/database/database.service';
-import { CreatePlayerDTO } from './contracts/create-player.dto';
-import { omit } from 'lodash';
-import * as bcrypt from 'bcrypt';
-import { UpdatePlayerDTO } from './contracts/update-player.dto';
 import { TokenService } from 'src/token/token.service';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import { omit } from 'lodash';
+import { CreatePlayerDTO } from './contracts/create-player.dto';
 import { LoginPlayerDTO } from './contracts/login-player.dto';
-import { UnauthorizedException } from '@nestjs/common';
+import { UpdatePlayerDTO } from './contracts/update-player.dto';
+import { TokenType } from 'src/generated/prisma/enums';
 
 describe('PlayerService', () => {
   let playerService: PlayerService;
   let tokenServiceMock: DeepMockProxy<TokenService>;
   let databaseMock: DeepMockProxy<DatabaseService>;
 
+  const fixedDate = new Date('2024-12-25T10:30:00Z');
+
+  const playerStub = {
+    id: 'f22c1dad-6f5e-4cb0-a600-750f4d1fd976',
+    username: 'marcus',
+    nickname: 'hehepotter',
+    hashedPassword: 'hashedPassword123',
+    createdAt: fixedDate,
+    updatedAt: fixedDate,
+  };
+
+  const tokensStub = {
+    accessToken: 'valid_access_token',
+    sessionToken: 'valid_session_token',
+  };
+
+  const successResponseStub = {
+    player: omit(playerStub, ['hashedPassword']),
+    accessToken: tokensStub.accessToken,
+    sessionToken: tokensStub.sessionToken,
+  };
+
   beforeEach(async () => {
     databaseMock = mockDeep<DatabaseService>();
     tokenServiceMock = mockDeep<TokenService>();
 
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PlayerService,
-        {
-          provide: DatabaseService,
-          useValue: databaseMock,
-        },
-        {
-          provide: TokenService,
-          useValue: tokenServiceMock,
-        },
+        { provide: DatabaseService, useValue: databaseMock },
+        { provide: TokenService, useValue: tokenServiceMock },
       ],
     }).compile();
 
@@ -40,168 +59,150 @@ describe('PlayerService', () => {
     expect(playerService).toBeDefined();
   });
 
-  describe('Login Method', () => {
-    const loginPlayerDTO: LoginPlayerDTO = {
+  describe('login', () => {
+    const loginDto: LoginPlayerDTO = {
       username: 'marcus',
-      password: 'hisnameisforbidden',
+      password: 'password123',
     };
 
-    it('player should login successfully', async () => {
-      const expectedReturn = {
-        player: {
-          id: 'f22c1dad-6f5e-4cb0-a600-750f4d1fd976',
-          username: 'marcus',
-          nickname: 'hehepotter',
-          hashedPassword: await bcrypt.hash('hisnameisforbidden', 10),
-          createdAt: new Date('2024-12-25T10:30:00Z'),
-          updatedAt: new Date(),
-        },
-        accessToken: 'token',
-        sessionToken: 'token',
-      };
+    it('should login successfully', async () => {
+      const validHash = await bcrypt.hash(loginDto.password, 10);
+      const playerWithValidHash = { ...playerStub, hashedPassword: validHash };
 
-      databaseMock.player.findUnique.mockResolvedValue(expectedReturn.player);
-      tokenServiceMock.generateSessionTokens.mockResolvedValue({
-        accessToken: 'token',
-        sessionToken: 'token',
-      });
+      databaseMock.player.findUnique.mockResolvedValue(playerWithValidHash);
+      tokenServiceMock.generateSessionTokens.mockResolvedValue(tokensStub);
 
-      const result = await playerService.login(loginPlayerDTO);
+      const result = await playerService.login(loginDto);
 
-      expect(result).toEqual(expectedReturn);
-      expect(databaseMock.player.findUnique).toHaveBeenCalledWith({
-        where: { username: loginPlayerDTO.username },
-      });
+      expect(result).toEqual(successResponseStub);
       expect(tokenServiceMock.generateSessionTokens).toHaveBeenCalledWith(
-        expectedReturn.player.id,
-        expectedReturn.player.nickname,
+        playerStub.id,
+        playerStub.nickname,
       );
-      expect(databaseMock.player.findUnique).toHaveBeenCalledTimes(1);
-      expect(tokenServiceMock.generateSessionTokens).toHaveBeenCalledTimes(1);
     });
 
-    it('should not find the player and throws an exception', async () => {
+    it('should throw UnauthorizedException if player not found', async () => {
       databaseMock.player.findUnique.mockResolvedValue(null);
 
-      await expect(playerService.login(loginPlayerDTO)).rejects.toThrow(
+      await expect(playerService.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
-    it('should not match the password and throws an exception', async () => {
-      const player = {
-        id: 'f22c1dad-6f5e-4cb0-a600-750f4d1fd976',
-        username: 'marcus',
-        nickname: 'hehepotter',
-        hashedPassword: await bcrypt.hash('hisnameisnotforbidden', 10),
-        createdAt: new Date('2024-12-25T10:30:00Z'),
-        updatedAt: new Date(),
-      };
+    it('should throw UnauthorizedException if password does not match', async () => {
+      databaseMock.player.findUnique.mockResolvedValue(playerStub);
 
-      databaseMock.player.findUnique.mockResolvedValue(player);
-
-      await expect(playerService.login(loginPlayerDTO)).rejects.toThrow(
+      await expect(playerService.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
       );
     });
   });
 
-  describe('Post Method - Player Creation', () => {
-    const playerMock: CreatePlayerDTO = {
-      nickname: 'Chalice',
-      username: 'MontyPython',
-      password: 'bl@ckKnight78',
+  describe('refreshSession', () => {
+    const cookieStub = {
+      id: 'f22c1dad-6f5e-4cb0-a600-750f4d1fd976',
+      iat: '1243558791',
+      exp: '1243948921'
     };
 
-    it('should create a new player and return the tokens', async () => {
-      const expectedReturn = {
-        player: {
-          id: 'f22c1dad-6f5e-4cb0-a600-750f4d1fd976',
-          ...omit(playerMock, ['password']),
-          hashedPassword: await bcrypt.hash(playerMock.password, 10),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        accessToken: 'token',
-        sessionToken: 'token',
-      };
+    it('should return new session tokens', async () => {
+      databaseMock.player.findUnique.mockResolvedValue(playerStub);
+      tokenServiceMock.validateToken.mockResolvedValue(cookieStub);
+      tokenServiceMock.generateSessionTokens.mockResolvedValue(tokensStub);
 
-      databaseMock.player.create.mockResolvedValue(expectedReturn.player);
-      tokenServiceMock.generateSessionTokens.mockResolvedValue({
-        accessToken: 'token',
-        sessionToken: 'token',
+      const result = await playerService.refreshSession('randomCookie');
+
+      expect(result).toEqual(successResponseStub);
+      expect(databaseMock.player.findUnique).toHaveBeenCalledWith({
+        where: { id: cookieStub.id }
       });
-
-      const result = await playerService.createPlayer(playerMock);
-
-      expect(result).toEqual(expectedReturn);
-      expect(tokenServiceMock.generateSessionTokens).toHaveBeenCalledWith(
-        expectedReturn.player.id,
-        playerMock.nickname,
-      );
-      expect(databaseMock.player.create).toHaveBeenCalledTimes(1);
+      expect(tokenServiceMock.validateToken).toHaveBeenCalledWith('randomCookie', TokenType.SESSION);
+      expect(tokenServiceMock.deleteToken).toHaveBeenCalledWith('randomCookie');
     });
 
-    it('should throw a database error', async () => {
-      databaseMock.player.create.mockRejectedValue(new Error());
+    it('should throw NotFoundException if player was not found', async () => {
+      tokenServiceMock.validateToken.mockResolvedValue(cookieStub);
+      databaseMock.player.findUnique.mockResolvedValue(null);
 
-      await expect(playerService.createPlayer(playerMock)).rejects.toThrow();
+      await expect(playerService.refreshSession('randomCookie')).rejects.toThrow(NotFoundException);
     });
   });
 
-  describe('Patch Method - Update Player', () => {
-    const updatePlayerDTO: UpdatePlayerDTO = {
+  describe('createPlayer', () => {
+    const createDto: CreatePlayerDTO = {
       nickname: 'hehepotter',
-      password: 'hisnameisforbidden',
       username: 'marcus',
+      password: 'password123',
     };
 
-    it('should hash the password before send it to the database and update the tokens', async () => {
-      const expectedReturn = {
-        player: {
-          id: 'f22c1dad-6f5e-4cb0-a600-750f4d1fd976',
-          username: 'marcus',
-          nickname: 'hehepotter',
-          hashedPassword: await bcrypt.hash('hisnameisforbidden', 10),
-          createdAt: new Date('2024-12-25T10:30:00Z'),
-          updatedAt: new Date(),
-        },
-        accessToken: 'token',
-        sessionToken: 'token',
-      };
+    it('should create a new player and return tokens', async () => {
+      databaseMock.player.create.mockResolvedValue(playerStub);
+      tokenServiceMock.generateSessionTokens.mockResolvedValue(tokensStub);
 
-      databaseMock.player.update.mockResolvedValue(expectedReturn.player);
-      tokenServiceMock.generateSessionTokens.mockResolvedValue({
-        accessToken: 'token',
-        sessionToken: 'token',
+      const result = await playerService.createPlayer(createDto);
+
+      expect(result).toEqual(successResponseStub);
+      expect(databaseMock.player.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          username: createDto.username,
+          hashedPassword: expect.any(String),
+        }),
       });
-
-      const result = await playerService.updatePlayer(
-        expectedReturn.player.id,
-        updatePlayerDTO,
-      );
-
-      expect(result).toEqual(expectedReturn);
-      expect(tokenServiceMock.generateSessionTokens).toHaveBeenCalledWith(
-        expectedReturn.player.id,
-        updatePlayerDTO.nickname,
-      );
-      expect(databaseMock.player.update).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw an Error if player does not exist', async () => {
-      databaseMock.player.update.mockRejectedValue(new Error());
+    it('should propagate database errors', async () => {
+      databaseMock.player.create.mockRejectedValue(new Error('DB Error'));
+      await expect(playerService.createPlayer(createDto)).rejects.toThrow(
+        'DB Error',
+      );
+    });
+  });
 
+  describe('updatePlayer', () => {
+    const updateDto: UpdatePlayerDTO = {
+      nickname: 'NewNick',
+    };
+
+    it('should update player and refresh tokens', async () => {
+      const updatedPlayerStub = { ...playerStub, nickname: 'NewNick' };
+
+      databaseMock.player.update.mockResolvedValue(updatedPlayerStub);
+      tokenServiceMock.generateSessionTokens.mockResolvedValue(tokensStub);
+
+      const result = await playerService.updatePlayer(playerStub.id, updateDto);
+
+      expect(result).toEqual({
+        ...successResponseStub,
+        player: omit(updatedPlayerStub, ['hashedPassword']),
+      });
+
+      expect(databaseMock.player.update).toHaveBeenCalledWith({
+        where: { id: playerStub.id },
+        data: expect.objectContaining({ nickname: 'NewNick' }),
+      });
+    });
+
+    it('should throw if player does not exist (database error)', async () => {
+      databaseMock.player.update.mockRejectedValue(new Error());
       await expect(
-        playerService.updatePlayer('unknownID', updatePlayerDTO),
+        playerService.updatePlayer('unknownID', updateDto),
       ).rejects.toThrow();
     });
   });
 
-  describe('Delete Method - Delete Player', () => {
-    it('should throw an Error if player does not exist', async () => {
-      databaseMock.player.delete.mockRejectedValue(new Error());
+  describe('deletePlayer', () => {
+    it('should delete player successfully', async () => {
+      databaseMock.player.delete.mockResolvedValue(playerStub);
 
+      await playerService.deletePlayer(playerStub.id);
+
+      expect(databaseMock.player.delete).toHaveBeenCalledWith({
+        where: { id: playerStub.id },
+      });
+    });
+
+    it('should throw Error if player does not exist', async () => {
+      databaseMock.player.delete.mockRejectedValue(new Error());
       await expect(playerService.deletePlayer('unknownID')).rejects.toThrow();
     });
   });
