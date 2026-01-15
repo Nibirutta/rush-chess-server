@@ -16,11 +16,39 @@ import { Token, Player } from 'src/generated/prisma/client';
 describe('TokenService', () => {
   let tokenService: TokenService;
   let databaseMock: DeepMockProxy<DatabaseService>;
-  let jwtService: DeepMockProxy<JwtService>;
+  let jwtServiceMock: DeepMockProxy<JwtService>;
+
+  const fixedDate = new Date('2023-06-21T09:41:00Z');
+  const jwtString = 'encoded.jwt.string';
+
+  const playerStub: Player = {
+    id: 'n8r7d2466',
+    nickname: 'Asplay',
+    username: 'Playas',
+    hashedPassword: 'hashed',
+    createdAt: fixedDate,
+    updatedAt: fixedDate,
+  };
+
+  const dbTokenStub: Token = {
+    id: 1,
+    token: jwtString,
+    playerID: playerStub.id,
+    type: TokenType.SESSION,
+    createdAt: fixedDate,
+    expiresAt: new Date('2050-12-01'),
+  };
+
+  const payloadStub = {
+    id: playerStub.id,
+    nickname: playerStub.nickname,
+  };
 
   beforeEach(async () => {
     databaseMock = mockDeep<DatabaseService>();
-    jwtService = mockDeep<JwtService>();
+    jwtServiceMock = mockDeep<JwtService>();
+
+    jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -31,130 +59,129 @@ describe('TokenService', () => {
         },
         {
           provide: JwtService,
-          useValue: jwtService,
+          useValue: jwtServiceMock,
         },
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string) => {
-              if (key === 'ACCESS_TOKEN_SECRET') {
-                return 'ACCESS_TOKEN_SECRET';
-              }
-
-              if (key === 'SESSION_TOKEN_SECRET') {
-                return 'SESSION_TOKEN_SECRET';
-              }
-
-              if (key === 'RESET_TOKEN_SECRET') {
-                return 'RESET_TOKEN_SECRET';
-              }
-            }),
+            get: jest.fn((key: string) => key),
           },
         },
       ],
     }).compile();
 
     tokenService = module.get<TokenService>(TokenService);
-    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
     expect(tokenService).toBeDefined();
   });
 
-  describe('Token Generation', () => {
-    const accessTokenDTO: AccessTokenPayloadDto = {
-      id: 'n1',
-      nickname: 'Asplay',
-    };
-    const sessionTokenDTO: SessionTokenPayloadDto = { id: 'n2' };
-    const resetTokenDTO: ResetTokenPayloadDto = { id: 'n3' };
+  describe('generateToken', () => {
+    it('should generate an access token (Stateless - No DB)', async () => {
+      jwtServiceMock.signAsync.mockResolvedValue(jwtString);
 
-    it('should return an access token', async () => {
-      jwtService.signAsync.mockResolvedValue('AccessToken');
+      const accessTokenPayload: AccessTokenPayloadDto = payloadStub;
 
       const result = await tokenService.generateToken(
-        accessTokenDTO,
+        accessTokenPayload,
         TokenType.ACCESS,
       );
 
-      expect(result).toEqual('AccessToken');
-      expect(jwtService.signAsync).toHaveBeenCalledWith(accessTokenDTO, {
+      expect(result).toEqual(jwtString);
+      expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(accessTokenPayload, {
         expiresIn: '10MINUTE',
         secret: 'ACCESS_TOKEN_SECRET',
       });
-      expect(jwtService.signAsync).toHaveBeenCalledTimes(1);
+      expect(databaseMock.token.create).not.toHaveBeenCalled();
     });
 
-    it('should return a session token', async () => {
-      jwtService.signAsync.mockResolvedValue('SessionToken');
+    it('should generate a session token and save to DB', async () => {
+      jwtServiceMock.signAsync.mockResolvedValue(jwtString);
+
+      const sessionTokenPayload: SessionTokenPayloadDto = {
+        id: payloadStub.id,
+      };
 
       const result = await tokenService.generateToken(
-        sessionTokenDTO,
+        sessionTokenPayload,
         TokenType.SESSION,
       );
 
-      expect(result).toEqual('SessionToken');
-      expect(jwtService.signAsync).toHaveBeenCalledWith(sessionTokenDTO, {
+      expect(result).toEqual(jwtString);
+      expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(sessionTokenPayload, {
         expiresIn: '3DAYS',
         secret: 'SESSION_TOKEN_SECRET',
       });
-      expect(jwtService.signAsync).toHaveBeenCalledTimes(1);
+
+      expect(databaseMock.token.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          token: jwtString,
+          type: TokenType.SESSION,
+          player: { connect: { id: sessionTokenPayload.id } },
+        }),
+      });
     });
 
-    it('should return a reset token', async () => {
-      jwtService.signAsync.mockResolvedValue('ResetToken');
+    it('should generate a reset token and save to DB', async () => {
+      jwtServiceMock.signAsync.mockResolvedValue(jwtString);
+
+      const resetTokenPayload: ResetTokenPayloadDto = { id: payloadStub.id };
 
       const result = await tokenService.generateToken(
-        resetTokenDTO,
+        resetTokenPayload,
         TokenType.RESET,
       );
 
-      expect(result).toEqual('ResetToken');
-      expect(jwtService.signAsync).toHaveBeenCalledWith(resetTokenDTO, {
+      expect(result).toEqual(jwtString);
+      expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(resetTokenPayload, {
         expiresIn: '1HOUR',
         secret: 'RESET_TOKEN_SECRET',
       });
-      expect(jwtService.signAsync).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return both access and session tokens', async () => {
-      const expectedValue = {
-        accessToken: 'token',
-        sessionToken: 'token',
-      };
-
-      jwtService.signAsync.mockResolvedValue('token');
-
-      const result = await tokenService.generateSessionTokens(
-        'randomID',
-        'randomNickname',
-      );
-
-      expect(result).toEqual(expectedValue);
-      expect(jwtService.signAsync).toHaveBeenCalledTimes(2);
+      
+      expect(databaseMock.token.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          token: jwtString,
+          type: TokenType.RESET,
+          player: { connect: { id: resetTokenPayload.id }},
+        }),
+      });
     });
   });
 
-  describe('Token Validation', () => {
-    describe('Access Token', () => {
-      it('should successfully validate the access token', async () => {
-        jwtService.verify.mockReturnValue({ token: 'validated' });
+  describe('generateSessionTokens', () => {
+    it('should return both access and session tokens', async () => {
+      jwtServiceMock.signAsync.mockResolvedValue(jwtString);
+
+      const result = await tokenService.generateSessionTokens(playerStub.id, playerStub.nickname);
+
+      expect(result).toEqual({
+        accessToken: jwtString,
+        sessionToken: jwtString
+      });
+      expect(jwtServiceMock.signAsync).toHaveBeenCalledTimes(2);
+      expect(databaseMock.token.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('validateToken', () => {
+    describe('when validating access token', () => {
+      it('should return decoded payload if valid', async () => {
+        jwtServiceMock.verify.mockReturnValue(payloadStub);
 
         const result = await tokenService.validateToken(
-          'accessToken',
+          jwtString,
           TokenType.ACCESS,
         );
 
-        expect(result).toEqual({ token: 'validated' });
-        expect(jwtService.verify).toHaveBeenCalledWith('accessToken', {
+        expect(result).toEqual(payloadStub);
+        expect(jwtServiceMock.verify).toHaveBeenCalledWith(jwtString, {
           secret: 'ACCESS_TOKEN_SECRET',
         });
-        expect(jwtService.verify).toHaveBeenCalledTimes(1);
       });
 
       it('should throw a forbidden exception when validating the access token', async () => {
-        jwtService.verify.mockImplementation(() => {
+        jwtServiceMock.verify.mockImplementation(() => {
           throw new Error();
         });
 
@@ -164,83 +191,58 @@ describe('TokenService', () => {
       });
     });
 
-    describe('Session Or Reset Token', () => {
-      const returnedToken: Token = {
-        id: 1,
-        token: 'sessionToken',
-        type: TokenType.SESSION,
-        playerID: 'n1',
-        createdAt: new Date('2024-12-25T10:30:00Z'),
-        expiresAt: new Date('2027-12-25T10:30:00Z'),
-      };
+    describe('when validating session/reset token', () => {
+      it('should validate successfully if token exists in DB and JWT is valid', async () => {
+        databaseMock.token.findUnique.mockResolvedValue(dbTokenStub);
 
-      const returnedPlayer: Player = {
-        id: 'n1',
-        nickname: 'Asplay',
-        username: 'Playas',
-        hashedPassword: 'hashed',
-        createdAt: new Date('2024-12-25T10:30:00Z'),
-        updatedAt: new Date(),
-      };
-
-      it('token was not found in the DB, should verify if the user exist in the DB and delete all his other tokens', async () => {
-        databaseMock.token.findUnique.mockResolvedValue(null);
-
-        databaseMock.player.findUnique.mockResolvedValue(returnedPlayer);
-
-        jwtService.verify.mockReturnValue({
-          decodedToken: returnedToken.token,
-        });
-
-        await expect(
-          tokenService.validateToken('sessionToken', TokenType.SESSION),
-        ).rejects.toThrow(ForbiddenException);
-        expect(databaseMock.token.deleteMany).toHaveBeenCalledTimes(1);
-        expect(databaseMock.token.deleteMany).toHaveBeenCalledWith({
-          where: { player: returnedPlayer },
-        });
-      });
-
-      it('should successfully validate the session or reset token', async () => {
-        databaseMock.token.findUnique.mockResolvedValue(returnedToken);
-
-        jwtService.verify.mockReturnValue({
-          decodedToken: returnedToken.token,
-        });
+        jwtServiceMock.verify.mockReturnValue(payloadStub);
 
         const result = await tokenService.validateToken(
-          'sessionToken',
+          jwtString,
           TokenType.SESSION,
         );
 
-        expect(result).toEqual({ decodedToken: returnedToken.token });
-        expect(jwtService.verify).toHaveBeenCalledWith('sessionToken', {
-          secret: 'SESSION_TOKEN_SECRET',
+        expect(result).toEqual(payloadStub);
+        expect(databaseMock.token.findUnique).toHaveBeenCalledWith({
+          where: { token: jwtString },
         });
-        expect(jwtService.verify).toHaveBeenCalledTimes(1);
       });
 
-      it('should throw a forbidden exception when validating the session or reset token', async () => {
-        databaseMock.token.findUnique.mockResolvedValue(returnedToken);
+      it('should detect TOKEN REUSE: if token not in DB but signature is valid, invalidate all user sessions', async () => {
+        databaseMock.token.findUnique.mockResolvedValue(null);
 
-        jwtService.verify.mockImplementation(() => {
+        databaseMock.player.findUnique.mockResolvedValue(playerStub);
+
+        jwtServiceMock.verify.mockReturnValue({ id: playerStub.id});
+
+        await expect(
+          tokenService.validateToken(jwtString, TokenType.SESSION),
+        ).rejects.toThrow(ForbiddenException);
+        expect(databaseMock.token.deleteMany).toHaveBeenCalledWith({
+          where: { player: playerStub },
+        });
+      });
+
+      it('should throw ForbiddenException if token exists in DB but JWT signature is invalid', async () => {
+        databaseMock.token.findUnique.mockResolvedValue(dbTokenStub);
+        jwtServiceMock.verify.mockImplementation(() => {
           throw new Error();
         });
 
         await expect(
-          tokenService.validateToken('sessionToken', TokenType.SESSION),
+          tokenService.validateToken(jwtString, TokenType.SESSION),
         ).rejects.toThrow(ForbiddenException);
       });
     });
 
-    describe('Delete Token', () => {
+    describe('deleteToken', () => {
       it('should delete a token', async () => {
-        databaseMock.token.delete.mockResolvedValue({} as any);
+        databaseMock.token.delete.mockResolvedValue(dbTokenStub);
 
-        await tokenService.deleteToken('some-token');
+        await tokenService.deleteToken(jwtString);
 
         expect(databaseMock.token.delete).toHaveBeenCalledWith({
-          where: { token: 'some-token' },
+          where: { token: jwtString },
         });
       });
     });

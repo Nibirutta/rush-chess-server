@@ -102,7 +102,7 @@ describe('PlayerService', () => {
     const cookieStub = {
       id: 'f22c1dad-6f5e-4cb0-a600-750f4d1fd976',
       iat: '1243558791',
-      exp: '1243948921'
+      exp: '1243948921',
     };
 
     it('should return new session tokens', async () => {
@@ -114,9 +114,12 @@ describe('PlayerService', () => {
 
       expect(result).toEqual(successResponseStub);
       expect(databaseMock.player.findUnique).toHaveBeenCalledWith({
-        where: { id: cookieStub.id }
+        where: { id: cookieStub.id },
       });
-      expect(tokenServiceMock.validateToken).toHaveBeenCalledWith('randomCookie', TokenType.SESSION);
+      expect(tokenServiceMock.validateToken).toHaveBeenCalledWith(
+        'randomCookie',
+        TokenType.SESSION,
+      );
       expect(tokenServiceMock.deleteToken).toHaveBeenCalledWith('randomCookie');
     });
 
@@ -124,7 +127,9 @@ describe('PlayerService', () => {
       tokenServiceMock.validateToken.mockResolvedValue(cookieStub);
       databaseMock.player.findUnique.mockResolvedValue(null);
 
-      await expect(playerService.refreshSession('randomCookie')).rejects.toThrow(NotFoundException);
+      await expect(
+        playerService.refreshSession('randomCookie'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
