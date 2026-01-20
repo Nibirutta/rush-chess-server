@@ -2,20 +2,16 @@ import {
   MessageBody,
   SubscribeMessage,
   WebSocketGateway,
-  WebSocketServer,
+  ConnectedSocket,
 } from '@nestjs/websockets';
-import { Server } from 'socket.io';
+import { Socket } from 'socket.io';
 import { BaseGateway } from '../base.gateway';
+import { MESSAGES_PATTERN } from '../events/messages.pattern';
 
 @WebSocketGateway({ namespace: 'chess' })
 export class ChessGateway extends BaseGateway {
-  @WebSocketServer()
-  server: Server;
-
-  @SubscribeMessage('testing')
-  testing(@MessageBody() data: string) {
-    console.log(data);
-
+  @SubscribeMessage(MESSAGES_PATTERN.TESTING)
+  testing(@MessageBody() data: string, @ConnectedSocket() client: Socket) {
     return data;
   }
 }
