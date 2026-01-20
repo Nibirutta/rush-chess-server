@@ -2,6 +2,7 @@
     "conventionalCommits.scopes": [
         "Global",
         "Player",
-        "Token"
+        "Token",
+        "Gateways"
     ]
 }

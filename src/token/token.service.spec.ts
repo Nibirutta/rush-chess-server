@@ -89,10 +89,13 @@ describe('TokenService', () => {
       );
 
       expect(result).toEqual(jwtString);
-      expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(accessTokenPayload, {
-        expiresIn: '10MINUTE',
-        secret: 'ACCESS_TOKEN_SECRET',
-      });
+      expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(
+        accessTokenPayload,
+        {
+          expiresIn: '10MINUTE',
+          secret: 'ACCESS_TOKEN_SECRET',
+        },
+      );
       expect(databaseMock.token.create).not.toHaveBeenCalled();
     });
 
@@ -109,10 +112,13 @@ describe('TokenService', () => {
       );
 
       expect(result).toEqual(jwtString);
-      expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(sessionTokenPayload, {
-        expiresIn: '3DAYS',
-        secret: 'SESSION_TOKEN_SECRET',
-      });
+      expect(jwtServiceMock.signAsync).toHaveBeenCalledWith(
+        sessionTokenPayload,
+        {
+          expiresIn: '3DAYS',
+          secret: 'SESSION_TOKEN_SECRET',
+        },
+      );
 
       expect(databaseMock.token.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -138,12 +144,12 @@ describe('TokenService', () => {
         expiresIn: '1HOUR',
         secret: 'RESET_TOKEN_SECRET',
       });
-      
+
       expect(databaseMock.token.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           token: jwtString,
           type: TokenType.RESET,
-          player: { connect: { id: resetTokenPayload.id }},
+          player: { connect: { id: resetTokenPayload.id } },
         }),
       });
     });
@@ -153,11 +159,14 @@ describe('TokenService', () => {
     it('should return both access and session tokens', async () => {
       jwtServiceMock.signAsync.mockResolvedValue(jwtString);
 
-      const result = await tokenService.generateSessionTokens(playerStub.id, playerStub.nickname);
+      const result = await tokenService.generateSessionTokens(
+        playerStub.id,
+        playerStub.nickname,
+      );
 
       expect(result).toEqual({
         accessToken: jwtString,
-        sessionToken: jwtString
+        sessionToken: jwtString,
       });
       expect(jwtServiceMock.signAsync).toHaveBeenCalledTimes(2);
       expect(databaseMock.token.create).toHaveBeenCalledTimes(1);
@@ -213,7 +222,7 @@ describe('TokenService', () => {
 
         databaseMock.player.findUnique.mockResolvedValue(playerStub);
 
-        jwtServiceMock.verify.mockReturnValue({ id: playerStub.id});
+        jwtServiceMock.verify.mockReturnValue({ id: playerStub.id });
 
         await expect(
           tokenService.validateToken(jwtString, TokenType.SESSION),

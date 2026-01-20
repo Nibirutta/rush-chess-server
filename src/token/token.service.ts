@@ -133,7 +133,7 @@ export class TokenService {
 
         return decodedToken;
       } catch (error) {
-        throw new ForbiddenException('Not allowed - invalid token');
+        throw new ForbiddenException('Invalid token');
       }
     } else {
       const foundToken = await this.databaseService.token.findUnique({
@@ -158,7 +158,7 @@ export class TokenService {
 
           return;
         } finally {
-          throw new ForbiddenException('Not allowed - invalid token');
+          throw new ForbiddenException('Invalid token');
         }
       }
 
@@ -169,7 +169,7 @@ export class TokenService {
 
         return decodedToken;
       } catch (error) {
-        throw new ForbiddenException('Not allowed - invalid token');
+        throw new ForbiddenException('Invalid token');
       }
     }
   }
