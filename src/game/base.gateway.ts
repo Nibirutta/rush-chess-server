@@ -2,15 +2,14 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
   WebSocketServer,
+  WsException,
 } from '@nestjs/websockets';
 import { TokenService } from 'src/token/token.service';
 import { TokenType } from 'src/common/enums/token-type.enum';
 import { Socket, Server } from 'socket.io';
 import * as cookie from 'cookie';
 import {
-  ForbiddenException,
   Injectable,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { PlayerSocketData } from './interfaces/socket-data.interface';
 import { EVENTS_PATTERN } from './events/events.pattern';
@@ -33,7 +32,7 @@ export abstract class BaseGateway
       ];
 
       if (!accessToken || !sessionToken)
-        throw new UnauthorizedException('Token missing');
+        throw new WsException('Token missing');
 
       const decodedAccessToken = await this.tokenService.validateToken(
         accessToken,
@@ -45,10 +44,10 @@ export abstract class BaseGateway
       );
 
       if (decodedAccessToken.id != decodedSessionToken.id)
-        throw new ForbiddenException('Invalid access');
+        throw new WsException('Invalid access');
 
       client.data = {
-        userID: decodedAccessToken.id,
+        playerID: decodedAccessToken.id,
         nickname: decodedAccessToken.nickname,
       } as PlayerSocketData;
 
