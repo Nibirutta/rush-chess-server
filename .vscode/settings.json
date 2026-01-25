@@ -3,6 +3,7 @@
         "Global",
         "Player",
         "Token",
-        "Gateways"
+        "Gateways",
+        "Chat"
     ]
 }

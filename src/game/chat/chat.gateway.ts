@@ -27,7 +27,7 @@ export class ChatGateway extends BaseGateway {
     const playerData: PlayerSocketData = client.data;
     const createdMessage = await this.chatService.createMessage(sendMessageDTO, playerData.playerID, playerData.nickname);
 
-    client.broadcast.emit(EVENTS_PATTERN.ON_MESSAGE, createdMessage.content);
+    this.server.emit(EVENTS_PATTERN.ON_MESSAGE, createdMessage.content);
 
     return createdMessage;
   }
