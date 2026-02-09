@@ -101,8 +101,8 @@ describe('PlayerService', () => {
   describe('refreshSession', () => {
     const cookieStub = {
       id: 'f22c1dad-6f5e-4cb0-a600-750f4d1fd976',
-      iat: '1243558791',
-      exp: '1243948921',
+      iat: 1243558791,
+      exp: 1243948921,
     };
 
     it('should return new session tokens', async () => {

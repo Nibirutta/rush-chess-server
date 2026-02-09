@@ -1,6 +1,6 @@
-import { Body, Controller, Get } from "@nestjs/common";
-import { ChatService } from "./chat.service";
-import { PaginationPropertiesDTO } from "../dto/pagination-properties.dto";
+import { Body, Controller, Get } from '@nestjs/common';
+import { ChatService } from './chat.service';
+import { PaginationPropertiesDTO } from '../dto/pagination-properties.dto';
 
 @Controller('chat')
 export class ChatController {

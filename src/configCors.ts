@@ -2,7 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { allowedOrigins } from './allowedOrigins';
 
 export const corsOptions = {
-  origin: (origin, callback) => {
+  origin: (origin: string, callback: (errors, options?) => void) => {
     // LATER - Remove !origin when its done
     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
       callback(null, true);

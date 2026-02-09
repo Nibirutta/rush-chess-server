@@ -8,12 +8,17 @@ import {
   AccessTokenPayloadDto,
   SessionTokenPayloadDto,
   ResetTokenPayloadDto,
-} from '../common/contracts/token.dto';
+} from './contracts/token.dto';
 import { DatabaseService } from 'src/database/database.service';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from 'src/generated/prisma/client';
 import { StringValue } from 'ms';
 import { ConfigService } from '@nestjs/config';
+import {
+  DecodedAccessToken,
+  DecodedResetToken,
+  DecodedSessionToken,
+} from './interfaces/decoded-token.interface';
 
 @Injectable()
 export class TokenService {
@@ -49,14 +54,15 @@ export class TokenService {
     tokenType: TokenType,
   ): Promise<string> {
     switch (tokenType) {
-      case TokenType.ACCESS:
+      case TokenType.ACCESS: {
         const accessToken = await this.jwtService.signAsync(payload, {
           expiresIn: this.getTokenDuration(tokenType),
           secret: this.getSecretByTokenType(tokenType),
         });
 
         return accessToken;
-      case TokenType.SESSION:
+      }
+      case TokenType.SESSION: {
         const sessionToken = await this.jwtService.signAsync(payload, {
           expiresIn: this.getTokenDuration(tokenType),
           secret: this.getSecretByTokenType(tokenType),
@@ -76,7 +82,8 @@ export class TokenService {
         await this.databaseService.token.create({ data: sessionTokenData });
 
         return sessionToken;
-      case TokenType.RESET:
+      }
+      case TokenType.RESET: {
         const resetToken = await this.jwtService.signAsync(payload, {
           expiresIn: this.getTokenDuration(tokenType),
           secret: this.getSecretByTokenType(tokenType),
@@ -96,6 +103,7 @@ export class TokenService {
         await this.databaseService.token.create({ data: resetTokenData });
 
         return resetToken;
+      }
     }
   }
 
@@ -124,15 +132,31 @@ export class TokenService {
     };
   }
 
-  async validateToken(token: string, tokenType: TokenType) {
+  validateToken(
+    token: string,
+    tokenType: TokenType.ACCESS,
+  ): Promise<DecodedAccessToken>;
+  validateToken(
+    token: string,
+    tokenType: TokenType.SESSION,
+  ): Promise<DecodedSessionToken>;
+  validateToken(
+    token: string,
+    tokenType: TokenType.RESET,
+  ): Promise<DecodedResetToken>;
+
+  async validateToken(
+    token: string,
+    tokenType: TokenType,
+  ): Promise<DecodedAccessToken | DecodedSessionToken | DecodedResetToken> {
     if (tokenType === TokenType.ACCESS) {
       try {
-        const decodedToken = this.jwtService.verify(token, {
+        const decodedToken = this.jwtService.verify<DecodedAccessToken>(token, {
           secret: this.getSecretByTokenType(tokenType),
         });
 
         return decodedToken;
-      } catch (error) {
+      } catch {
         throw new ForbiddenException('Invalid token');
       }
     } else {
@@ -142,7 +166,9 @@ export class TokenService {
 
       if (!foundToken) {
         try {
-          const decodedToken = this.jwtService.verify(token, {
+          const decodedToken = this.jwtService.verify<
+            DecodedSessionToken | DecodedResetToken
+          >(token, {
             secret: this.getSecretByTokenType(tokenType),
           });
 
@@ -155,20 +181,21 @@ export class TokenService {
               where: { player: hackedUser },
             });
           }
-
-          return;
-        } finally {
-          throw new ForbiddenException('Invalid token');
+        } catch {
+          // Do nothing
         }
+        throw new ForbiddenException('Invalid token');
       }
 
       try {
-        const decodedToken = this.jwtService.verify(token, {
+        const decodedToken = this.jwtService.verify<
+          DecodedSessionToken | DecodedResetToken
+        >(token, {
           secret: this.getSecretByTokenType(tokenType),
         });
 
         return decodedToken;
-      } catch (error) {
+      } catch {
         throw new ForbiddenException('Invalid token');
       }
     }
@@ -180,9 +207,11 @@ export class TokenService {
 
   getSecretByTokenType(tokenType: TokenType): string {
     const secretMap = {
-      [TokenType.ACCESS]: this.configService.get('ACCESS_TOKEN_SECRET'),
-      [TokenType.SESSION]: this.configService.get('SESSION_TOKEN_SECRET'),
-      [TokenType.RESET]: this.configService.get('RESET_TOKEN_SECRET'),
+      [TokenType.ACCESS]: this.configService.get<string>('ACCESS_TOKEN_SECRET'),
+      [TokenType.SESSION]: this.configService.get<string>(
+        'SESSION_TOKEN_SECRET',
+      ),
+      [TokenType.RESET]: this.configService.get<string>('RESET_TOKEN_SECRET'),
     };
 
     if (!secretMap[tokenType])

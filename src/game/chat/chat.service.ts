@@ -1,8 +1,8 @@
-import { Injectable } from "@nestjs/common";
-import { DatabaseService } from "src/database/database.service";
-import { Prisma } from "src/generated/prisma/client";
-import { SendMessageDTO } from "../dto/send-message.dto";
-import { PaginationPropertiesDTO } from "../dto/pagination-properties.dto";
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from 'src/database/database.service';
+import { Prisma } from 'src/generated/prisma/client';
+import { SendMessageDTO } from '../dto/send-message.dto';
+import { PaginationPropertiesDTO } from '../dto/pagination-properties.dto';
 
 @Injectable()
 export class ChatService {
@@ -17,20 +17,23 @@ export class ChatService {
       },
     });
 
-    return messages.map((message) => 
-      message.content
-    );
+    return messages.map((message) => message.content);
   }
 
-  async createMessage(sendMessageDTO: SendMessageDTO, playerID: string, nickname: string) {
+  async createMessage(
+    sendMessageDTO: SendMessageDTO,
+    playerID: string,
+    nickname: string,
+  ) {
+    // eslint-disable-next-line
     const messageContent: string = `[${nickname}] - ${sendMessageDTO.content.replaceAll(/[\[\]]/g, '')}`;
     const messageData: Prisma.MessageCreateInput = {
       content: messageContent,
       player: {
         connect: {
-          id: playerID
-        }
-      }
+          id: playerID,
+        },
+      },
     };
 
     return this.databaseService.message.create({ data: messageData });

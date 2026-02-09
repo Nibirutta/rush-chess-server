@@ -6,7 +6,7 @@ import {
   AccessTokenPayloadDto,
   SessionTokenPayloadDto,
   ResetTokenPayloadDto,
-} from 'src/common/contracts/token.dto';
+} from 'src/token/contracts/token.dto';
 import { TokenService } from './token.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';

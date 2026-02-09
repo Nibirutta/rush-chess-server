@@ -20,8 +20,8 @@ export class SessionManagementInterceptor implements NestInterceptor {
     const response: Response = context.switchToHttp().getResponse();
 
     return next.handle().pipe(
-      map((data) => {
-        if (data?.sessionToken) {
+      map((data: unknown) => {
+        if (data && typeof data === 'object' && 'sessionToken' in data) {
           response.clearCookie('sessionToken', {
             secure: true,
             httpOnly: true,
@@ -36,9 +36,10 @@ export class SessionManagementInterceptor implements NestInterceptor {
             sameSite: 'none',
           });
 
-          const { sessionToken, ...rest } = data;
+          const payload = data;
+          delete payload.sessionToken;
 
-          return rest;
+          return payload;
         }
 
         return data;

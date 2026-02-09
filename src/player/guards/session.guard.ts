@@ -14,7 +14,7 @@ export class SessionGuard implements CanActivate {
   ): boolean | Promise<boolean> | Observable<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
 
-    const sessionToken = request.cookies?.sessionToken;
+    const sessionToken = request.cookies?.sessionToken as string;
 
     if (!sessionToken) {
       throw new UnauthorizedException('Session Token Missing');

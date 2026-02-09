@@ -3,6 +3,6 @@ import { ChatModule } from './chat/chat.module';
 import { ChessModule } from './chess/chess.module';
 
 @Module({
-  imports: [ChatModule, ChessModule]
+  imports: [ChatModule, ChessModule],
 })
 export class GameModule {}

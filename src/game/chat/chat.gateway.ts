@@ -17,18 +17,33 @@ import { PlayerSocketData } from '../interfaces/socket-data.interface';
 export class ChatGateway extends BaseGateway {
   constructor(
     private readonly chatService: ChatService,
-    tokenService: TokenService
+    tokenService: TokenService,
   ) {
     super(tokenService);
   }
 
   @SubscribeMessage(MESSAGES_PATTERN.SEND_MESSAGE)
-  async sendMessage(@MessageBody() sendMessageDTO: SendMessageDTO, @ConnectedSocket() client: Socket) {
-    const playerData: PlayerSocketData = client.data;
-    const createdMessage = await this.chatService.createMessage(sendMessageDTO, playerData.playerID, playerData.nickname);
+  async sendMessage(
+    @MessageBody() sendMessageDTO: SendMessageDTO,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const playerData = client.data as PlayerSocketData;
+    const createdMessage = await this.chatService.createMessage(
+      sendMessageDTO,
+      playerData.playerID,
+      playerData.nickname,
+    );
 
     this.server.emit(EVENTS_PATTERN.ON_MESSAGE, createdMessage.content);
+  }
 
-    return createdMessage;
+  @SubscribeMessage(MESSAGES_PATTERN.TYPING)
+  typing(@MessageBody() isTyping: boolean, @ConnectedSocket() client: Socket) {
+    const playerData = client.data as PlayerSocketData;
+
+    client.broadcast.emit(EVENTS_PATTERN.ON_TYPING, {
+      player: playerData.nickname,
+      isTyping: isTyping,
+    });
   }
 }
