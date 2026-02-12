@@ -15,7 +15,7 @@ export class SessionManagementInterceptor implements NestInterceptor {
 
   intercept(
     context: ExecutionContext,
-    next: CallHandler<any>,
+    next: CallHandler,
   ): Observable<any> | Promise<Observable<any>> {
     const response: Response = context.switchToHttp().getResponse();
 

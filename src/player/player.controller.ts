@@ -6,6 +6,8 @@ import {
   Get,
   UseGuards,
   Req,
+  HttpStatus,
+  HttpCode,
 } from '@nestjs/common';
 import { CreatePlayerDTO } from './contracts/create-player.dto';
 import { PlayerService } from './player.service';
@@ -13,6 +15,7 @@ import { SessionManagementInterceptor } from './interceptors/session-management.
 import { SessionGuard } from './guards/session.guard';
 import { LoginPlayerDTO } from './contracts/login-player.dto';
 import { Request } from 'express';
+import { LogoutInterceptor } from './interceptors/logout.interceptor';
 
 @Controller('player')
 export class PlayerController {
@@ -38,4 +41,9 @@ export class PlayerController {
 
     return this.playerService.refreshSession(sessionToken);
   }
+
+  @UseInterceptors(LogoutInterceptor)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Get('logout')
+  logout() {}
 }
