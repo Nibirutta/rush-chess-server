@@ -37,7 +37,7 @@ enum TokenType {
 
 model Player {
   id String @id @default(uuid())
-  nickname String 
+  nickname String @unique
   username String @unique
   hashedPassword String
 
