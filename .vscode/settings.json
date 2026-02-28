@@ -4,6 +4,7 @@
         "Player",
         "Token",
         "Gateways",
-        "Chat"
+        "Chat",
+        "Lobby"
     ]
 }

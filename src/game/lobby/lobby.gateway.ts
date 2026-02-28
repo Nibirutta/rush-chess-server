@@ -5,6 +5,8 @@ import {
   ConnectedSocket,
   WsException,
   WebSocketServer,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { ValidationPipe, UsePipes, UseFilters } from '@nestjs/common';
 import { ValidationOptions } from 'src/common/options/validation.options';
@@ -23,9 +25,11 @@ import { InviteResponseDTO, SendInviteDTO } from '../dto/inviting.dto';
 })
 @UsePipes(new ValidationPipe(ValidationOptions))
 @UseFilters(WsExceptionTransformFilter)
-export class LobbyGateway {
+export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
+
+  inviteMap: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(private readonly lobbyService: LobbyService) {}
 
@@ -107,6 +111,16 @@ export class LobbyGateway {
         challenger: playerData.nickname,
         matchID: matchID,
       });
+
+      const inviteTimeout = setTimeout(() => {
+        this.server.to(matchID).emit(EVENTS_PATTERN.ON_INVITE_REFUSED, {
+          message: 'Invite timeout',
+        });
+
+        this.server.socketsLeave(matchID);
+      }, 15000);
+
+      this.inviteMap.set(matchID, inviteTimeout);
     } else {
       throw new WsException('Invalid opponent');
     }
@@ -125,7 +139,8 @@ export class LobbyGateway {
       this.server
         .to(inviteResponseDTO.matchID)
         .emit(EVENTS_PATTERN.ON_INVITE_ACCEPTED, {
-          message: `Player ${playerData.nickname} accepted your challenge`,
+          message: 'Chess duel is ready to start',
+          matchID: inviteResponseDTO.matchID,
         });
     } else {
       this.server
@@ -136,5 +151,7 @@ export class LobbyGateway {
     }
 
     this.server.socketsLeave(inviteResponseDTO.matchID);
+    clearTimeout(this.inviteMap.get(inviteResponseDTO.matchID));
+    this.inviteMap.delete(inviteResponseDTO.matchID);
   }
 }
