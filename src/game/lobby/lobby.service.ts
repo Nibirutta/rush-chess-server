@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { Prisma } from 'src/generated/prisma/client';
-import { SendMessageDTO } from '../dto/send-message.dto';
+import { SendMessageDTO } from '../dto/messaging.dto';
 import { PaginationPropertiesDTO } from '../dto/pagination-properties.dto';
 
 @Injectable()
-export class ChatService {
+export class LobbyService {
   constructor(private readonly databaseService: DatabaseService) {}
 
   async getMessages(paginationPropertiesDTO: PaginationPropertiesDTO) {

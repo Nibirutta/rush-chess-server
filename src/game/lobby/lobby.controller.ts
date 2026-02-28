@@ -1,10 +1,10 @@
 import { Body, Controller, Get } from '@nestjs/common';
-import { ChatService } from './chat.service';
+import { LobbyService } from './lobby.service';
 import { PaginationPropertiesDTO } from '../dto/pagination-properties.dto';
 
-@Controller('chat')
-export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+@Controller('lobby')
+export class LobbyController {
+  constructor(private readonly chatService: LobbyService) {}
 
   @Get('messages')
   async getMessages(@Body() paginationPropertiesDTO: PaginationPropertiesDTO) {
