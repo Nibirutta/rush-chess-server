@@ -33,25 +33,23 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(private readonly lobbyService: LobbyService) {}
 
-  async handleConnection() {
-    await this.broadcastOnlinePlayers();
+  handleConnection(client: Socket) {
+    const playerSocketData = client.data as PlayerSocketData;
+    this.lobbyService.playerConnected(client.id, playerSocketData);
+    this.broadcastOnlinePlayers();
   }
 
-  async handleDisconnect() {
-    await this.broadcastOnlinePlayers();
+  handleDisconnect(client: Socket) {
+    this.lobbyService.playerDisconnected(client.id);
+    this.broadcastOnlinePlayers();
   }
 
-  async broadcastOnlinePlayers() {
-    const sockets = await this.server.fetchSockets();
-    const onlinePlayers = sockets.map((socket) => ({
-      socket_id: socket.id,
-      player_data: socket.data as PlayerSocketData,
-    }));
+  broadcastOnlinePlayers() {
+    setTimeout(() => {
+      const playersOnline = this.lobbyService.getOnlinePlayers();
 
-    this.server.emit(
-      EVENTS_PATTERN.BROADCAST_ONLINE_PLAYERS,
-      JSON.stringify(onlinePlayers),
-    );
+      this.server.emit(EVENTS_PATTERN.BROADCAST_ONLINE_PLAYERS, playersOnline);
+    }, 50);
   }
 
   @SubscribeMessage(MESSAGES_PATTERN.SEND_MESSAGE)

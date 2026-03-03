@@ -42,10 +42,12 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
       if (decodedAccessToken.id != decodedSessionToken.id)
         throw new Error('invalid access');
 
-      socket.data = {
+      const playerData: PlayerSocketData = {
         playerID: decodedAccessToken.id,
         nickname: decodedAccessToken.nickname,
-      } as PlayerSocketData;
+      };
+
+      socket.data = playerData;
 
       return next();
     } catch (error) {
