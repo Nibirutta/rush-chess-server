@@ -17,8 +17,12 @@ import { LobbyService } from './lobby.service';
 import { EVENTS_PATTERN } from '../events/events.pattern';
 import { SendMessageDTO, IsTypingDTO } from '../dto/messaging.dto';
 import { PlayerSocketData } from '../interfaces/socket-data.interface';
-import { randomUUID } from 'crypto';
-import { InviteResponseDTO, SendInviteDTO } from '../dto/inviting.dto';
+import {
+  InviteResponseDTO,
+  OnInviteExpired,
+  SendInviteDTO,
+} from '../dto/inviting.dto';
+import { OnEvent } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   namespace: 'lobby',
@@ -29,18 +33,17 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  inviteMap: Map<string, NodeJS.Timeout> = new Map();
-
   constructor(private readonly lobbyService: LobbyService) {}
 
   handleConnection(client: Socket) {
     const playerSocketData = client.data as PlayerSocketData;
-    this.lobbyService.playerConnected(client.id, playerSocketData);
+    this.lobbyService.playerConnected(playerSocketData, client.id);
     this.broadcastOnlinePlayers();
   }
 
   handleDisconnect(client: Socket) {
-    this.lobbyService.playerDisconnected(client.id);
+    const playerSocketData = client.data as PlayerSocketData;
+    this.lobbyService.playerDisconnected(playerSocketData);
     this.broadcastOnlinePlayers();
   }
 
@@ -49,7 +52,7 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const playersOnline = this.lobbyService.getOnlinePlayers();
 
       this.server.emit(EVENTS_PATTERN.BROADCAST_ONLINE_PLAYERS, playersOnline);
-    }, 50);
+    }, 50); // Added 50 miliseconds because of race conditions, must be executed only after connection
   }
 
   @SubscribeMessage(MESSAGES_PATTERN.SEND_MESSAGE)
@@ -88,40 +91,34 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() sendInviteDTO: SendInviteDTO,
     @ConnectedSocket() client: Socket,
   ) {
-    const playerData = client.data as PlayerSocketData;
-    const onlinePlayers = await this.server.fetchSockets();
-    const targetSocket = onlinePlayers.find((skt) => {
-      const data = skt.data as PlayerSocketData;
+    const challengerData = client.data as PlayerSocketData;
 
-      if (data.nickname === sendInviteDTO.nickname) {
-        return true;
-      }
+    try {
+      const inviteTicket = this.lobbyService.invite(
+        challengerData.playerID,
+        sendInviteDTO.opponentPlayerID,
+      );
 
-      return false;
+      await client.join(inviteTicket.waitRoomID);
+
+      this.server
+        .to(inviteTicket.opponentSocketID)
+        .emit(EVENTS_PATTERN.ON_INVITE, {
+          challenger: challengerData.nickname,
+          waitRoomID: inviteTicket.waitRoomID,
+        });
+    } catch (error) {
+      throw new WsException(error);
+    }
+  }
+
+  @OnEvent(EVENTS_PATTERN.ON_INVITE_EXPIRED)
+  inviteExpired(payload: OnInviteExpired) {
+    this.server.to(payload.waitRoomID).emit(EVENTS_PATTERN.ON_INVITE_EXPIRED, {
+      message: 'Invite expired',
     });
 
-    if (targetSocket && targetSocket.id !== client.id) {
-      const matchID = randomUUID();
-
-      await client.join(matchID);
-
-      this.server.to(targetSocket.id).emit(EVENTS_PATTERN.ON_INVITE, {
-        challenger: playerData.nickname,
-        matchID: matchID,
-      });
-
-      const inviteTimeout = setTimeout(() => {
-        this.server.to(matchID).emit(EVENTS_PATTERN.ON_INVITE_REFUSED, {
-          message: 'Invite timeout',
-        });
-
-        this.server.socketsLeave(matchID);
-      }, 15000);
-
-      this.inviteMap.set(matchID, inviteTimeout);
-    } else {
-      throw new WsException('Invalid opponent');
-    }
+    this.server.socketsLeave(payload.waitRoomID);
   }
 
   @SubscribeMessage(MESSAGES_PATTERN.INVITE_RESPONSE)
@@ -129,27 +126,33 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() inviteResponseDTO: InviteResponseDTO,
     @ConnectedSocket() client: Socket,
   ) {
-    const playerData = client.data as PlayerSocketData;
+    const opponentData = client.data as PlayerSocketData;
 
-    if (inviteResponseDTO.accepted) {
-      await client.join(inviteResponseDTO.matchID);
+    try {
+      if (inviteResponseDTO.accepted) {
+        await client.join(inviteResponseDTO.waitRoomID);
 
-      this.server
-        .to(inviteResponseDTO.matchID)
-        .emit(EVENTS_PATTERN.ON_INVITE_ACCEPTED, {
-          message: 'Chess duel is ready to start',
-          matchID: inviteResponseDTO.matchID,
-        });
-    } else {
-      this.server
-        .to(inviteResponseDTO.matchID)
-        .emit(EVENTS_PATTERN.ON_INVITE_REFUSED, {
-          message: `Player ${playerData.nickname} refused your challenge`,
-        });
+        this.server
+          .to(inviteResponseDTO.waitRoomID)
+          .emit(EVENTS_PATTERN.ON_INVITE_ACCEPTED, {
+            message: 'Chess duel is ready to start',
+          });
+      } else {
+        this.server
+          .to(inviteResponseDTO.waitRoomID)
+          .emit(EVENTS_PATTERN.ON_INVITE_REFUSED, {
+            message: `Player ${opponentData.nickname} refused your challenge`,
+          });
+      }
+
+      this.lobbyService.resolveInvite(
+        inviteResponseDTO.waitRoomID,
+        inviteResponseDTO.accepted,
+      );
+    } catch (error) {
+      throw new WsException(error);
+    } finally {
+      this.server.socketsLeave(inviteResponseDTO.waitRoomID);
     }
-
-    this.server.socketsLeave(inviteResponseDTO.matchID);
-    clearTimeout(this.inviteMap.get(inviteResponseDTO.matchID));
-    this.inviteMap.delete(inviteResponseDTO.matchID);
   }
 }

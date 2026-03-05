@@ -6,4 +6,5 @@ export const EVENTS_PATTERN = {
   ON_INVITE: 'on_invite',
   ON_INVITE_ACCEPTED: 'on_invite_accepted',
   ON_INVITE_REFUSED: 'on_invite_refused',
+  ON_INVITE_EXPIRED: 'on_invite_expired',
 };
