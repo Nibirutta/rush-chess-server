@@ -5,7 +5,7 @@ import { TokenService } from './token/token.service';
 import { ExtendedError, Server, ServerOptions, Socket } from 'socket.io';
 import * as cookie from 'cookie';
 import { TokenType } from './common/enums/token-type.enum';
-import { PlayerSocketData } from './game/interfaces/socket-data.interface';
+import { PlayerSocketData } from './common/interfaces/socket-data.interface';
 import { corsOptions } from './configCors';
 
 export class SocketAuthenticatedAdapter extends IoAdapter {

@@ -4,4 +4,5 @@ export const MESSAGES_PATTERN = {
   TYPING: 'typing',
   INVITE: 'invite',
   INVITE_RESPONSE: 'invite_response',
+  IS_READY: 'is_ready',
 };

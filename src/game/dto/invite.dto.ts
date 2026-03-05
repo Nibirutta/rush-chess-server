@@ -13,10 +13,10 @@ export class InviteResponseDTO {
 export class SendInviteDTO {
   @IsNotEmpty()
   @IsString()
-  opponentPlayerID: string;
+  opponentID: string;
 }
 
-// Not require validation
+// Do not require validation
 
 export class OnInviteExpired {
   waitRoomID: string;

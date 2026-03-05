@@ -1,26 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { Prisma } from 'src/generated/prisma/client';
-import { SendMessageDTO } from '../dto/messaging.dto';
+import { SendMessageDTO } from '../dto/message.dto';
 import { PaginationPropertiesDTO } from '../dto/pagination-properties.dto';
-import { PlayerSocketData } from '../interfaces/socket-data.interface';
+import { PlayerSocketData } from '../../common/interfaces/socket-data.interface';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { randomUUID } from 'crypto';
-import { EVENTS_PATTERN } from '../events/events.pattern';
-import { InviteTicket, OnInviteExpired } from '../dto/inviting.dto';
-
-type PlayerLobbyStatus = 'READY' | 'NOT_READY' | 'AWAITING' | 'ON_BATTLE';
-
-interface PlayerLobbyInfo extends PlayerSocketData {
-  socketID: string;
-  status: PlayerLobbyStatus;
-}
-
-interface InviteSession {
-  timeout: NodeJS.Timeout;
-  challengerID: string;
-  opponentID: string;
-}
+import {
+  INVITE_EVENTS_PATTERN,
+  PLAYER_EVENTS_PATTERN,
+} from '../events/events.pattern';
+import { InviteTicket, OnInviteExpired } from '../dto/invite.dto';
+import { InviteSession } from '../interfaces/invite.interface';
+import {
+  PlayerLobbyInfo,
+  PlayerLobbyStatus,
+} from '../interfaces/player-on-lobby.interface';
+import { OnPlayerStatusChanged } from '../dto/player-on-lobby.dto';
 
 @Injectable()
 export class LobbyService {
@@ -37,7 +33,7 @@ export class LobbyService {
       playerID: playerSocketData.playerID,
       nickname: playerSocketData.nickname,
       socketID: socketID,
-      status: 'READY',
+      status: PlayerLobbyStatus.Ready,
     });
   }
 
@@ -84,16 +80,19 @@ export class LobbyService {
     const foundOpponent = this.onlinePlayers.get(opponentID);
 
     if (!foundOpponent) throw new Error('Opponent not found');
-    if (challengerID === opponentID || foundOpponent.status !== 'READY')
+    if (
+      challengerID === opponentID ||
+      foundOpponent.status !== PlayerLobbyStatus.Ready
+    )
       throw new Error('Invalid opponent');
 
     const waitRoomID = randomUUID().toString();
     const inviteExpirationTimeout = setTimeout(() => {
-      this.changePlayerStatus(challengerID, 'READY');
-      this.changePlayerStatus(opponentID, 'READY');
+      this.changePlayerStatus(challengerID, PlayerLobbyStatus.Ready);
+      this.changePlayerStatus(opponentID, PlayerLobbyStatus.Ready);
 
       this.eventEmitter.emit(
-        EVENTS_PATTERN.ON_INVITE_EXPIRED,
+        INVITE_EVENTS_PATTERN.ON_INVITE_EXPIRED,
         new OnInviteExpired(waitRoomID),
       );
     }, 15000);
@@ -104,10 +103,18 @@ export class LobbyService {
       opponentID: opponentID,
     });
 
-    this.changePlayerStatus(challengerID, 'AWAITING');
-    this.changePlayerStatus(opponentID, 'AWAITING');
+    this.changePlayerStatus(challengerID, PlayerLobbyStatus.Awaiting);
+    this.changePlayerStatus(opponentID, PlayerLobbyStatus.Awaiting);
 
     return new InviteTicket(waitRoomID, foundOpponent.socketID);
+  }
+
+  playerReady(playerID: string, ready: boolean) {
+    if (ready) {
+      this.changePlayerStatus(playerID, PlayerLobbyStatus.Ready);
+    } else {
+      this.changePlayerStatus(playerID, PlayerLobbyStatus.Not_Ready);
+    }
   }
 
   changePlayerStatus(playerID: string, status: PlayerLobbyStatus) {
@@ -116,6 +123,11 @@ export class LobbyService {
     if (!foundPlayer) return;
 
     foundPlayer.status = status;
+
+    this.eventEmitter.emit(
+      PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
+      new OnPlayerStatusChanged(playerID, status),
+    );
   }
 
   resolveInvite(waitRoomID: string, accepted: boolean) {
@@ -126,19 +138,27 @@ export class LobbyService {
     }
 
     clearTimeout(inviteSession.timeout);
-    const challenger = this.onlinePlayers.get(inviteSession.challengerID);
-    const opponent = this.onlinePlayers.get(inviteSession.opponentID);
-
-    this.inviteMapping.delete(waitRoomID);
-
-    if (!challenger || !opponent) throw new Error('Both players not found');
 
     if (accepted) {
-      challenger.status = 'ON_BATTLE';
-      opponent.status = 'ON_BATTLE';
+      this.changePlayerStatus(
+        inviteSession.challengerID,
+        PlayerLobbyStatus.On_Battle,
+      );
+      this.changePlayerStatus(
+        inviteSession.opponentID,
+        PlayerLobbyStatus.On_Battle,
+      );
     } else {
-      challenger.status = 'READY';
-      opponent.status = 'READY';
+      this.changePlayerStatus(
+        inviteSession.challengerID,
+        PlayerLobbyStatus.Ready,
+      );
+      this.changePlayerStatus(
+        inviteSession.opponentID,
+        PlayerLobbyStatus.Ready,
+      );
     }
+
+    this.inviteMapping.delete(waitRoomID);
   }
 }
