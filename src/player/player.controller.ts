@@ -8,6 +8,9 @@ import {
   Req,
   HttpStatus,
   HttpCode,
+  ValidationPipe,
+  UsePipes,
+  UseFilters,
 } from '@nestjs/common';
 import { CreatePlayerDTO } from './contracts/create-player.dto';
 import { PlayerService } from './player.service';
@@ -16,8 +19,12 @@ import { SessionGuard } from './guards/session.guard';
 import { LoginPlayerDTO } from './contracts/login-player.dto';
 import { Request } from 'express';
 import { LogoutInterceptor } from './interceptors/logout.interceptor';
+import { ValidationOptions } from 'src/common/options/validation.options';
+import { HttpDomainExceptionFilter } from 'src/common/filters/http-domain-exception.filter';
 
 @Controller('player')
+@UsePipes(new ValidationPipe(ValidationOptions))
+@UseFilters(new HttpDomainExceptionFilter())
 export class PlayerController {
   constructor(private readonly playerService: PlayerService) {}
 

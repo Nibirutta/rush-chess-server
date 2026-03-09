@@ -3,13 +3,16 @@ import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PlayerService } from './player.service';
 import { DatabaseService } from 'src/database/database.service';
 import { TokenService } from 'src/token/token.service';
-import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { omit } from 'lodash';
 import { CreatePlayerDTO } from './contracts/create-player.dto';
 import { LoginPlayerDTO } from './contracts/login-player.dto';
 import { UpdatePlayerDTO } from './contracts/update-player.dto';
 import { TokenType } from 'src/generated/prisma/enums';
+import {
+  InvalidPasswordError,
+  InvalidUsernameError,
+} from 'src/common/errors/player.errors';
 
 describe('PlayerService', () => {
   let playerService: PlayerService;
@@ -85,7 +88,7 @@ describe('PlayerService', () => {
       databaseMock.player.findUnique.mockResolvedValue(null);
 
       await expect(playerService.login(loginDto)).rejects.toThrow(
-        UnauthorizedException,
+        InvalidUsernameError,
       );
     });
 
@@ -93,7 +96,7 @@ describe('PlayerService', () => {
       databaseMock.player.findUnique.mockResolvedValue(playerStub);
 
       await expect(playerService.login(loginDto)).rejects.toThrow(
-        UnauthorizedException,
+        InvalidPasswordError,
       );
     });
   });
@@ -129,7 +132,7 @@ describe('PlayerService', () => {
 
       await expect(
         playerService.refreshSession('randomCookie'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(InvalidUsernameError);
     });
   });
 

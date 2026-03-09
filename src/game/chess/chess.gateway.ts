@@ -6,16 +6,16 @@ import {
 } from '@nestjs/websockets';
 import { ValidationPipe, UsePipes, UseFilters } from '@nestjs/common';
 import { ValidationOptions } from 'src/common/options/validation.options';
-import { WsExceptionTransformFilter } from 'src/common/filters/ws-exception-transform.filter';
 import { MESSAGES_PATTERN } from '../events/messages.pattern';
 import { ChessService } from './chess.service';
 import { Server } from 'socket.io';
+import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.filter';
 
 @WebSocketGateway({
   namespace: 'chess',
 })
 @UsePipes(new ValidationPipe(ValidationOptions))
-@UseFilters(WsExceptionTransformFilter)
+@UseFilters(new WsDomainExceptionFilter())
 export class ChessGateway {
   @WebSocketServer()
   server: Server;

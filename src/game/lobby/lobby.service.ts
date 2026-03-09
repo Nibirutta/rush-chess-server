@@ -17,6 +17,10 @@ import {
   PlayerLobbyStatus,
 } from '../interfaces/player-on-lobby.interface';
 import { OnPlayerStatusChanged } from '../dto/player-on-lobby.dto';
+import {
+  PlayerNotFoundError,
+  SessionNotFoundError,
+} from 'src/common/errors/lobby.errors';
 
 @Injectable()
 export class LobbyService {
@@ -79,12 +83,12 @@ export class LobbyService {
   invite(challengerID: string, opponentID: string) {
     const foundOpponent = this.onlinePlayers.get(opponentID);
 
-    if (!foundOpponent) throw new Error('Opponent not found');
+    if (!foundOpponent) throw new PlayerNotFoundError('Opponent not found');
     if (
       challengerID === opponentID ||
       foundOpponent.status !== PlayerLobbyStatus.Ready
     )
-      throw new Error('Invalid opponent');
+      throw new PlayerNotFoundError('Invalid opponent');
 
     const waitRoomID = randomUUID().toString();
     const inviteExpirationTimeout = setTimeout(() => {
@@ -134,7 +138,7 @@ export class LobbyService {
     const inviteSession = this.inviteMapping.get(waitRoomID);
 
     if (!inviteSession) {
-      throw new Error('Invite session not found');
+      throw new SessionNotFoundError('Invite session not found');
     }
 
     clearTimeout(inviteSession.timeout);

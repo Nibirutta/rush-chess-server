@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { Prisma } from 'src/generated/prisma/client';
 import { omit } from 'lodash';
@@ -12,6 +8,10 @@ import * as bcrypt from 'bcrypt';
 import { TokenService } from 'src/token/token.service';
 import { LoginPlayerDTO } from './contracts/login-player.dto';
 import { TokenType } from 'src/common/enums/token-type.enum';
+import {
+  InvalidPasswordError,
+  InvalidUsernameError,
+} from 'src/common/errors/player.errors';
 
 @Injectable()
 export class PlayerService {
@@ -26,7 +26,7 @@ export class PlayerService {
     });
 
     if (!foundPlayer) {
-      throw new UnauthorizedException('Username or password is invalid');
+      throw new InvalidUsernameError('Username or password is invalid');
     }
 
     const isValidPassword = await bcrypt.compare(
@@ -35,7 +35,7 @@ export class PlayerService {
     );
 
     if (!isValidPassword) {
-      throw new UnauthorizedException('Username or password is invalid');
+      throw new InvalidPasswordError('Username or password is invalid');
     }
 
     const { accessToken, sessionToken } =
@@ -61,7 +61,7 @@ export class PlayerService {
     });
 
     if (!foundPlayer)
-      throw new NotFoundException('Player does not exist anymore');
+      throw new InvalidUsernameError('Player does not exist anymore');
 
     await this.tokenService.deleteToken(cookie); // Always returns a valid value
 

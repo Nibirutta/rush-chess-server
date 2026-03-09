@@ -7,6 +7,10 @@ import * as cookie from 'cookie';
 import { TokenType } from './common/enums/token-type.enum';
 import { PlayerSocketData } from './common/interfaces/socket-data.interface';
 import { corsOptions } from './configCors';
+import {
+  InconsistentTokenInfoError,
+  ValidationTokenMissingError,
+} from './common/errors/token.errors';
 
 export class SocketAuthenticatedAdapter extends IoAdapter {
   private readonly tokenService: TokenService;
@@ -28,7 +32,10 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
         'sessionToken'
       ];
 
-      if (!accessToken || !sessionToken) throw new Error('Token missing');
+      if (!accessToken || !sessionToken)
+        throw new ValidationTokenMissingError(
+          'Access token or session token or both are missing',
+        );
 
       const decodedAccessToken = await this.tokenService.validateToken(
         accessToken,
@@ -40,7 +47,7 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
       );
 
       if (decodedAccessToken.id != decodedSessionToken.id)
-        throw new Error('invalid access');
+        throw new InconsistentTokenInfoError('Decoded token info conflict');
 
       const playerData: PlayerSocketData = {
         playerID: decodedAccessToken.id,

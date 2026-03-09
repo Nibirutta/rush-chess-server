@@ -10,8 +10,8 @@ import {
 import { TokenService } from './token.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ForbiddenException } from '@nestjs/common';
 import { Token, Player } from 'src/generated/prisma/client';
+import { FailedTokenValidationError } from 'src/common/errors/token.errors';
 
 describe('TokenService', () => {
   let tokenService: TokenService;
@@ -189,14 +189,14 @@ describe('TokenService', () => {
         });
       });
 
-      it('should throw a forbidden exception when validating the access token', async () => {
+      it('should throw a FailedTokenValidationError after trying to validate an invalid access token', async () => {
         jwtServiceMock.verify.mockImplementation(() => {
           throw new Error();
         });
 
         await expect(
           tokenService.validateToken('accessToken', TokenType.ACCESS),
-        ).rejects.toThrow(ForbiddenException);
+        ).rejects.toThrow(FailedTokenValidationError);
       });
     });
 
@@ -226,13 +226,13 @@ describe('TokenService', () => {
 
         await expect(
           tokenService.validateToken(jwtString, TokenType.SESSION),
-        ).rejects.toThrow(ForbiddenException);
+        ).rejects.toThrow(FailedTokenValidationError);
         expect(databaseMock.token.deleteMany).toHaveBeenCalledWith({
           where: { player: playerStub },
         });
       });
 
-      it('should throw ForbiddenException if token exists in DB but JWT signature is invalid', async () => {
+      it('should throw FailedTokenValidationError if token exists in DB but JWT signature is invalid', async () => {
         databaseMock.token.findUnique.mockResolvedValue(dbTokenStub);
         jwtServiceMock.verify.mockImplementation(() => {
           throw new Error();
@@ -240,7 +240,7 @@ describe('TokenService', () => {
 
         await expect(
           tokenService.validateToken(jwtString, TokenType.SESSION),
-        ).rejects.toThrow(ForbiddenException);
+        ).rejects.toThrow(FailedTokenValidationError);
       });
     });
 

@@ -3,14 +3,12 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   ConnectedSocket,
-  WsException,
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { ValidationPipe, UsePipes, UseFilters } from '@nestjs/common';
 import { ValidationOptions } from 'src/common/options/validation.options';
-import { WsExceptionTransformFilter } from 'src/common/filters/ws-exception-transform.filter';
 import { Socket, Server } from 'socket.io';
 import { MESSAGES_PATTERN } from '../events/messages.pattern';
 import { LobbyService } from './lobby.service';
@@ -31,12 +29,13 @@ import {
   IsPlayerReadyDTO,
   OnPlayerStatusChanged,
 } from '../dto/player-on-lobby.dto';
+import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.filter';
 
 @WebSocketGateway({
   namespace: 'lobby',
 })
 @UsePipes(new ValidationPipe(ValidationOptions))
-@UseFilters(WsExceptionTransformFilter)
+@UseFilters(new WsDomainExceptionFilter())
 export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
@@ -106,23 +105,19 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const challengerData = client.data as PlayerSocketData;
 
-    try {
-      const inviteTicket = this.lobbyService.invite(
-        challengerData.playerID,
-        sendInviteDTO.opponentID,
-      );
+    const inviteTicket = this.lobbyService.invite(
+      challengerData.playerID,
+      sendInviteDTO.opponentID,
+    );
 
-      this.server
-        .in([client.id, inviteTicket.opponentSocketID])
-        .socketsJoin(inviteTicket.waitRoomID);
+    this.server
+      .in([client.id, inviteTicket.opponentSocketID])
+      .socketsJoin(inviteTicket.waitRoomID);
 
-      client.to(inviteTicket.waitRoomID).emit(INVITE_EVENTS_PATTERN.ON_INVITE, {
-        challenger: challengerData.nickname,
-        waitRoomID: inviteTicket.waitRoomID,
-      });
-    } catch (error) {
-      throw new WsException(error);
-    }
+    client.to(inviteTicket.waitRoomID).emit(INVITE_EVENTS_PATTERN.ON_INVITE, {
+      challenger: challengerData.nickname,
+      waitRoomID: inviteTicket.waitRoomID,
+    });
   }
 
   @SubscribeMessage(MESSAGES_PATTERN.INVITE_RESPONSE)
@@ -147,8 +142,6 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
         inviteResponseDTO.waitRoomID,
         inviteResponseDTO.accepted,
       );
-    } catch (error) {
-      throw new WsException(error);
     } finally {
       this.server.socketsLeave(inviteResponseDTO.waitRoomID);
     }

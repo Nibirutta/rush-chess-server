@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  ForbiddenException,
-  NotImplementedException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { TokenType } from '../common/enums/token-type.enum';
 import {
   AccessTokenPayloadDto,
@@ -19,6 +15,10 @@ import {
   DecodedResetToken,
   DecodedSessionToken,
 } from './interfaces/decoded-token.interface';
+import {
+  FailedTokenValidationError,
+  SecretMapEmptyError,
+} from 'src/common/errors/token.errors';
 
 @Injectable()
 export class TokenService {
@@ -157,7 +157,7 @@ export class TokenService {
 
         return decodedToken;
       } catch {
-        throw new ForbiddenException('Invalid token');
+        throw new FailedTokenValidationError('Invalid token');
       }
     } else {
       const foundToken = await this.databaseService.token.findUnique({
@@ -184,7 +184,7 @@ export class TokenService {
         } catch {
           // Do nothing
         }
-        throw new ForbiddenException('Invalid token');
+        throw new FailedTokenValidationError('Invalid token');
       }
 
       try {
@@ -196,7 +196,7 @@ export class TokenService {
 
         return decodedToken;
       } catch {
-        throw new ForbiddenException('Invalid token');
+        throw new FailedTokenValidationError('Invalid token');
       }
     }
   }
@@ -215,7 +215,7 @@ export class TokenService {
     };
 
     if (!secretMap[tokenType])
-      throw new NotImplementedException('Token key is missing');
+      throw new SecretMapEmptyError('Token key is missing');
 
     return secretMap[tokenType];
   }
