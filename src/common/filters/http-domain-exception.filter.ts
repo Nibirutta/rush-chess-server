@@ -13,6 +13,7 @@ import {
   InvalidUsernameError,
 } from '../errors/player.errors';
 import {
+  InvalidOpponentError,
   PlayerNotFoundError,
   SessionNotFoundError,
 } from '../errors/lobby.errors';
@@ -30,6 +31,7 @@ export class HttpDomainExceptionFilter extends BaseExceptionFilter {
     [PlayerNotFoundError, HttpStatus.NOT_FOUND],
     [SessionNotFoundError, HttpStatus.NOT_FOUND],
     [InputFieldIncorrectError, HttpStatus.BAD_REQUEST],
+    [InvalidOpponentError, HttpStatus.BAD_REQUEST],
   ]);
 
   catch(error: DomainError, host: ArgumentsHost): void {

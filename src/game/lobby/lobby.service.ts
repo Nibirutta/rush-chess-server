@@ -18,6 +18,7 @@ import {
 } from '../interfaces/player-on-lobby.interface';
 import { OnPlayerStatusChanged } from '../dto/player-on-lobby.dto';
 import {
+  InvalidOpponentError,
   PlayerNotFoundError,
   SessionNotFoundError,
 } from 'src/common/errors/lobby.errors';
@@ -88,7 +89,9 @@ export class LobbyService {
       challengerID === opponentID ||
       foundOpponent.status !== PlayerLobbyStatus.Ready
     )
-      throw new PlayerNotFoundError('Invalid opponent');
+      throw new InvalidOpponentError(
+        'Opponent is not ready or is not currently online',
+      );
 
     const waitRoomID = randomUUID().toString();
     const inviteExpirationTimeout = setTimeout(() => {
@@ -125,6 +128,7 @@ export class LobbyService {
     const foundPlayer = this.onlinePlayers.get(playerID);
 
     if (!foundPlayer) return;
+    if (foundPlayer.status === status) return;
 
     foundPlayer.status = status;
 

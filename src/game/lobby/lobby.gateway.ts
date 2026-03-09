@@ -170,8 +170,6 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @OnEvent(PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED)
   playerStatusChanged(payload: OnPlayerStatusChanged) {
-    this.server.emit(PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED, {
-      payload,
-    });
+    this.server.emit(PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED, payload);
   }
 }
