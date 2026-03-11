@@ -5,6 +5,11 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from 'src/database/database.service';
 import { PlayerSocketData } from 'src/common/interfaces/socket-data.interface';
 import { PaginationPropertiesDTO } from '../dto/pagination-properties.dto';
+import {
+  INVITE_EVENTS_PATTERN,
+  PLAYER_EVENTS_PATTERN,
+} from '../events/events.pattern';
+import { PlayerLobbyStatus } from '../interfaces/player-on-lobby.interface';
 
 describe('LobbyService', () => {
   let lobbyService: LobbyService;
@@ -15,6 +20,7 @@ describe('LobbyService', () => {
     eventEmitterMock = mockDeep<EventEmitter2>();
     databaseMock = mockDeep<DatabaseService>();
 
+    jest.useFakeTimers();
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -28,11 +34,15 @@ describe('LobbyService', () => {
     lobbyService = module.get<LobbyService>(LobbyService);
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('should be defined', () => {
     expect(lobbyService).toBeDefined();
   });
 
-  describe('playerConnected & playerDisconnected', () => {
+  describe('player connection', () => {
     const playerSocketData: PlayerSocketData = {
       playerID: 'playerID',
       nickname: 'player1',
@@ -58,13 +68,13 @@ describe('LobbyService', () => {
     });
   });
 
-  describe('getMessages', () => {
-    const paginationPropertiesDTO: PaginationPropertiesDTO = {
-      amount: 1,
-      skip: 0,
-    };
-
+  describe('messages', () => {
     it('should return only the message content', async () => {
+      const paginationPropertiesDTO: PaginationPropertiesDTO = {
+        amount: 1,
+        skip: 0,
+      };
+
       const allMessagesFound = [
         {
           playerID: 'playerID',
@@ -80,7 +90,70 @@ describe('LobbyService', () => {
 
       const expected = [allMessagesFound[0].content];
 
-      expect(result).toEqual(expected);
+      expect(result).toStrictEqual(expected);
+    });
+  });
+
+  describe('invitation', () => {
+    const challengerID = 'playerID-123';
+    const opponentID = 'playerID-456';
+
+    it('should invite the opponent successfully', () => {
+      lobbyService.playerConnected(
+        { playerID: challengerID, nickname: 'PlayerOne' },
+        'socket1',
+      );
+
+      lobbyService.playerConnected(
+        { playerID: opponentID, nickname: 'PlayerTwo' },
+        'socket2',
+      );
+
+      const emitSpy = jest.spyOn(eventEmitterMock, 'emit');
+
+      const result = lobbyService.invite(challengerID, opponentID);
+
+      const players = lobbyService.getOnlinePlayers();
+
+      players.forEach((player) => {
+        expect(player.status).toBe(PlayerLobbyStatus.Awaiting);
+      });
+
+      expect(result).toBeDefined();
+      expect(result.opponentSocketID).toStrictEqual('socket2');
+      expect(emitSpy).toHaveBeenCalledWith(
+        PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
+        expect.anything(),
+      );
+    });
+
+    it('should expire the invite after 15 seconds', () => {
+      lobbyService.playerConnected(
+        { playerID: challengerID, nickname: 'PlayerOne' },
+        'socket1',
+      );
+
+      lobbyService.playerConnected(
+        { playerID: opponentID, nickname: 'PlayerTwo' },
+        'socket2',
+      );
+
+      const emitSpy = jest.spyOn(eventEmitterMock, 'emit');
+
+      lobbyService.invite(challengerID, opponentID);
+
+      jest.advanceTimersByTime(15000);
+
+      const players = lobbyService.getOnlinePlayers();
+
+      players.forEach((player) => {
+        expect(player.status).toBe(PlayerLobbyStatus.Ready);
+      });
+
+      expect(emitSpy).toHaveBeenCalledWith(
+        INVITE_EVENTS_PATTERN.ON_INVITE_EXPIRED,
+        expect.anything(),
+      );
     });
   });
 });

@@ -67,10 +67,12 @@ export class LobbyService {
     playerID: string,
     nickname: string,
   ) {
-    // eslint-disable-next-line
-    const messageContent: string = `[${nickname}] - ${sendMessageDTO.content.replaceAll(/[\[\]]/g, '')}`;
+    const formatedMessage = this.formatMessage(
+      sendMessageDTO.content,
+      nickname,
+    );
     const messageData: Prisma.MessageCreateInput = {
-      content: messageContent,
+      content: formatedMessage,
       player: {
         connect: {
           id: playerID,
@@ -79,6 +81,13 @@ export class LobbyService {
     };
 
     return this.databaseService.message.create({ data: messageData });
+  }
+
+  private formatMessage(message: string, nickname: string) {
+    // eslint-disable-next-line
+    const messageContent: string = `[${nickname}] - ${message.replaceAll(/[\[\]]/g, '')}`;
+
+    return messageContent;
   }
 
   invite(challengerID: string, opponentID: string) {
