@@ -148,8 +148,8 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage(MESSAGES_PATTERN.IS_READY)
-  ready(@MessageBody() isPlayerReadyDTO: IsPlayerReadyDTO) {
-    this.lobbyService.playerReady(
+  isPlayerReady(@MessageBody() isPlayerReadyDTO: IsPlayerReadyDTO) {
+    this.lobbyService.isPlayerReady(
       isPlayerReadyDTO.playerID,
       isPlayerReadyDTO.ready,
     );

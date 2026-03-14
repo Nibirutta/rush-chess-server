@@ -14,7 +14,7 @@ import {
 } from '../errors/player.errors';
 import {
   InvalidOpponentError,
-  PlayerNotFoundError,
+  PlayerIsOfflineError,
   SessionNotFoundError,
 } from '../errors/lobby.errors';
 import { InputFieldIncorrectError } from '../errors/validation.errors';
@@ -28,7 +28,7 @@ export class HttpDomainExceptionFilter extends BaseExceptionFilter {
     [InconsistentTokenInfoError, HttpStatus.FORBIDDEN],
     [InvalidPasswordError, HttpStatus.UNAUTHORIZED],
     [InvalidUsernameError, HttpStatus.UNAUTHORIZED],
-    [PlayerNotFoundError, HttpStatus.NOT_FOUND],
+    [PlayerIsOfflineError, HttpStatus.NOT_FOUND],
     [SessionNotFoundError, HttpStatus.NOT_FOUND],
     [InputFieldIncorrectError, HttpStatus.BAD_REQUEST],
     [InvalidOpponentError, HttpStatus.BAD_REQUEST],

@@ -10,6 +10,12 @@ import {
   PLAYER_EVENTS_PATTERN,
 } from '../events/events.pattern';
 import { PlayerLobbyStatus } from '../interfaces/player-on-lobby.interface';
+import {
+  InvalidOpponentError,
+  PlayerIsOfflineError,
+  SessionNotFoundError,
+} from 'src/common/errors/lobby.errors';
+import { InviteTicket } from '../dto/invite.dto';
 
 describe('LobbyService', () => {
   let lobbyService: LobbyService;
@@ -68,14 +74,14 @@ describe('LobbyService', () => {
     });
   });
 
-  describe('messages', () => {
+  describe('getMessages & createMessage', () => {
     it('should return only the message content', async () => {
       const paginationPropertiesDTO: PaginationPropertiesDTO = {
         amount: 1,
         skip: 0,
       };
 
-      const allMessagesFound = [
+      const mockedMessages = [
         {
           playerID: 'playerID',
           id: 1,
@@ -84,17 +90,37 @@ describe('LobbyService', () => {
         },
       ];
 
-      databaseMock.message.findMany.mockResolvedValue(allMessagesFound);
+      databaseMock.message.findMany.mockResolvedValue(mockedMessages);
 
       const result = await lobbyService.getMessages(paginationPropertiesDTO);
 
-      const expected = [allMessagesFound[0].content];
+      const expected = [mockedMessages[0].content];
 
       expect(result).toStrictEqual(expected);
     });
+
+    it('should format the message before save it to the database', async () => {
+      const messageContent = 'Hello [world]';
+      const playerID = 'playerID';
+      const nickname = 'nickname';
+
+      // making use of mock implementation to pass the parameter as returned value
+      databaseMock.message.create.mockImplementation((value) => {
+        // eslint-disable-next-line
+        return value.data as any;
+      });
+
+      const result = await lobbyService.createMessage(
+        { content: messageContent },
+        playerID,
+        nickname,
+      );
+
+      expect(result.content).toStrictEqual(`[${nickname}] - Hello world`);
+    });
   });
 
-  describe('invitation', () => {
+  describe('invite, invite timeout & resolve invite', () => {
     const challengerID = 'playerID-123';
     const opponentID = 'playerID-456';
 
@@ -113,18 +139,17 @@ describe('LobbyService', () => {
 
       const result = lobbyService.invite(challengerID, opponentID);
 
-      const players = lobbyService.getOnlinePlayers();
-
-      players.forEach((player) => {
-        expect(player.status).toBe(PlayerLobbyStatus.Awaiting);
-      });
-
-      expect(result).toBeDefined();
-      expect(result.opponentSocketID).toStrictEqual('socket2');
       expect(emitSpy).toHaveBeenCalledWith(
         PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
         expect.anything(),
       );
+      const players = lobbyService.getOnlinePlayers();
+      players.forEach((player) => {
+        expect(player.status).toBe(PlayerLobbyStatus.Awaiting);
+      });
+
+      expect(result).toBeInstanceOf(InviteTicket);
+      expect(result.opponentSocketID).toStrictEqual('socket2');
     });
 
     it('should expire the invite after 15 seconds', () => {
@@ -144,8 +169,11 @@ describe('LobbyService', () => {
 
       jest.advanceTimersByTime(15000);
 
+      expect(emitSpy).toHaveBeenCalledWith(
+        PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
+        expect.anything(),
+      );
       const players = lobbyService.getOnlinePlayers();
-
       players.forEach((player) => {
         expect(player.status).toBe(PlayerLobbyStatus.Ready);
       });
@@ -154,6 +182,98 @@ describe('LobbyService', () => {
         INVITE_EVENTS_PATTERN.ON_INVITE_EXPIRED,
         expect.anything(),
       );
+    });
+
+    it('should throw PlayerIsOfflineError if opponent is not online', () => {
+      expect(() =>
+        lobbyService.invite(challengerID, 'opponent-is-offline'),
+      ).toThrow(PlayerIsOfflineError);
+    });
+
+    it('should throw InvalidOpponentError if opponent is not ready or the ID is invalid', () => {
+      lobbyService.playerConnected(
+        { playerID: challengerID, nickname: 'PlayerOne' },
+        'socket1',
+      );
+
+      lobbyService.playerConnected(
+        { playerID: opponentID, nickname: 'PlayerTwo' },
+        'socket2',
+      );
+
+      lobbyService.isPlayerReady(opponentID, false);
+
+      expect(() => lobbyService.invite(challengerID, opponentID)).toThrow(
+        InvalidOpponentError,
+      );
+    });
+
+    it('should accept the invitation and start the battle', () => {
+      lobbyService.playerConnected(
+        { playerID: challengerID, nickname: 'PlayerOne' },
+        'socket1',
+      );
+
+      lobbyService.playerConnected(
+        { playerID: opponentID, nickname: 'PlayerTwo' },
+        'socket2',
+      );
+
+      const invitation = lobbyService.invite(challengerID, opponentID);
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      const emitSpy = jest.spyOn(eventEmitterMock, 'emit');
+
+      emitSpy.mockClear();
+
+      lobbyService.resolveInvite(invitation.waitRoomID, true);
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      expect(emitSpy).toHaveBeenCalledWith(
+        PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
+        expect.anything(),
+      );
+      expect(emitSpy).toHaveBeenCalledTimes(2);
+      const players = lobbyService.getOnlinePlayers();
+      players.forEach((player) =>
+        expect(player.status).toBe(PlayerLobbyStatus.On_Battle),
+      );
+    });
+
+    it('should refuse the invitation and become ready to be invited again', () => {
+      lobbyService.playerConnected(
+        { playerID: challengerID, nickname: 'PlayerOne' },
+        'socket1',
+      );
+
+      lobbyService.playerConnected(
+        { playerID: opponentID, nickname: 'PlayerTwo' },
+        'socket2',
+      );
+
+      const invitation = lobbyService.invite(challengerID, opponentID);
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      const emitSpy = jest.spyOn(eventEmitterMock, 'emit');
+
+      emitSpy.mockClear();
+
+      lobbyService.resolveInvite(invitation.waitRoomID, false);
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      expect(emitSpy).toHaveBeenCalledWith(
+        PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
+        expect.anything(),
+      );
+      expect(emitSpy).toHaveBeenCalledTimes(2);
+      const players = lobbyService.getOnlinePlayers();
+      players.forEach((player) =>
+        expect(player.status).toBe(PlayerLobbyStatus.Ready),
+      );
+    });
+
+    it('should throw SessionNotFoundError if dont match any session ID', () => {
+      expect(() =>
+        lobbyService.resolveInvite('non-available-session-id', true),
+      ).toThrow(SessionNotFoundError);
     });
   });
 });

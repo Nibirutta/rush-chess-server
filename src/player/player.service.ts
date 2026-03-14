@@ -11,6 +11,7 @@ import { TokenType } from 'src/common/enums/token-type.enum';
 import {
   InvalidPasswordError,
   InvalidUsernameError,
+  PlayerNotFoundError,
 } from 'src/common/errors/player.errors';
 
 @Injectable()
@@ -61,7 +62,7 @@ export class PlayerService {
     });
 
     if (!foundPlayer)
-      throw new InvalidUsernameError('Player does not exist anymore');
+      throw new PlayerNotFoundError('Player does not exist anymore');
 
     await this.tokenService.deleteToken(cookie); // Always returns a valid value
 

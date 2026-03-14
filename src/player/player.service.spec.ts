@@ -12,6 +12,7 @@ import { TokenType } from 'src/generated/prisma/enums';
 import {
   InvalidPasswordError,
   InvalidUsernameError,
+  PlayerNotFoundError,
 } from 'src/common/errors/player.errors';
 
 describe('PlayerService', () => {
@@ -84,7 +85,7 @@ describe('PlayerService', () => {
       );
     });
 
-    it('should throw UnauthorizedException if player not found', async () => {
+    it('should throw InvalidUsernameError if player not found', async () => {
       databaseMock.player.findUnique.mockResolvedValue(null);
 
       await expect(playerService.login(loginDto)).rejects.toThrow(
@@ -92,7 +93,7 @@ describe('PlayerService', () => {
       );
     });
 
-    it('should throw UnauthorizedException if password does not match', async () => {
+    it('should throw InvalidPasswordError if password does not match', async () => {
       databaseMock.player.findUnique.mockResolvedValue(playerStub);
 
       await expect(playerService.login(loginDto)).rejects.toThrow(
@@ -126,13 +127,13 @@ describe('PlayerService', () => {
       expect(tokenServiceMock.deleteToken).toHaveBeenCalledWith('randomCookie');
     });
 
-    it('should throw NotFoundException if player was not found', async () => {
+    it('should throw PlayerNotFoundError if player was not found', async () => {
       tokenServiceMock.validateToken.mockResolvedValue(cookieStub);
       databaseMock.player.findUnique.mockResolvedValue(null);
 
       await expect(
         playerService.refreshSession('randomCookie'),
-      ).rejects.toThrow(InvalidUsernameError);
+      ).rejects.toThrow(PlayerNotFoundError);
     });
   });
 
