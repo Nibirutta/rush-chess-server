@@ -5,6 +5,7 @@
         "Token",
         "Gateways",
         "Chat",
-        "Lobby"
+        "Lobby",
+        "Chess"
     ]
 }

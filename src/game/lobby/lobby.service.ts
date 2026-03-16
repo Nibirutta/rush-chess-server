@@ -14,6 +14,7 @@ import {
   SessionNotFoundError,
 } from 'src/common/errors/lobby.errors';
 import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
+import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
 
 @Injectable()
 export class LobbyService {
@@ -59,12 +60,12 @@ export class LobbyService {
     playerID: string,
     nickname: string,
   ) {
-    const formatedMessage = this.formatMessage(
+    const formattedMessage = this.formatMessage(
       sendMessageDTO.content,
       nickname,
     );
     const messageData: Prisma.MessageCreateInput = {
-      content: formatedMessage,
+      content: formattedMessage,
       player: {
         connect: {
           id: playerID,
@@ -97,7 +98,7 @@ export class LobbyService {
       this.changePlayerStatus(challengerID, PlayerStatus.Ready);
       this.changePlayerStatus(opponentID, PlayerStatus.Ready);
 
-      this.domainEventEmitter.emit('on_invite_expired', {
+      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_INVITE_EXPIRED, {
         waitRoomID: waitRoomID,
       });
     }, 15000);
@@ -135,10 +136,13 @@ export class LobbyService {
 
     foundPlayer.status = status;
 
-    this.domainEventEmitter.emit('on_player_status_changed', {
-      playerID: playerID,
-      status: status,
-    });
+    this.domainEventEmitter.emit(
+      DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
+      {
+        playerID: playerID,
+        status: status,
+      },
+    );
   }
 
   resolveInvite(waitRoomID: string, accepted: boolean) {
@@ -151,6 +155,12 @@ export class LobbyService {
     clearTimeout(inviteSession.timeout);
 
     if (accepted) {
+      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_MATCH_ACCEPTED, {
+        matchID: waitRoomID,
+        challengerID: inviteSession.challengerID,
+        opponentID: inviteSession.opponentID,
+      });
+
       this.changePlayerStatus(
         inviteSession.challengerID,
         PlayerStatus.On_Battle,

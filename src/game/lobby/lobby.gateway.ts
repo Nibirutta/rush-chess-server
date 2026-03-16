@@ -25,6 +25,7 @@ import {
   OnInviteExpired,
   OnPlayerStatusChanged,
 } from 'src/common/event/domain.events';
+import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
 
 @WebSocketGateway({
   namespace: 'lobby',
@@ -149,7 +150,7 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Events
 
-  @OnDomainEvents('on_invite_expired')
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_INVITE_EXPIRED)
   inviteExpired(payload: OnInviteExpired) {
     this.server
       .to(payload.waitRoomID)
@@ -160,7 +161,7 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.socketsLeave(payload.waitRoomID);
   }
 
-  @OnDomainEvents('on_player_status_changed')
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED)
   playerStatusChanged(payload: OnPlayerStatusChanged) {
     this.server.emit(OUTGOING_MESSAGES.NOTIFY_PLAYER_UPDATE, payload);
   }

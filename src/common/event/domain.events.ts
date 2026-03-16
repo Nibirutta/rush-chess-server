@@ -10,7 +10,14 @@ export interface OnInviteExpired {
   waitRoomID: string;
 }
 
+export interface OnMatchAccepted {
+  matchID: string;
+  challengerID: string;
+  opponentID: string;
+}
+
 export type DomainEventsMap = {
   [DOMAIN_EVENTS_PATTERN.ON_INVITE_EXPIRED]: OnInviteExpired;
   [DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED]: OnPlayerStatusChanged;
+  [DOMAIN_EVENTS_PATTERN.ON_MATCH_ACCEPTED]: OnMatchAccepted;
 };

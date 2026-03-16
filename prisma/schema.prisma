@@ -81,16 +81,16 @@ model Message {
 }
 
 model Match {
-  id String @id @default(uuid()) 
+  id String @id
   status MatchStatus @default(WAITING)
   gameState Json @db.Json 
 
   movements Movement[]
 
-  playerWhite Player? @relation("WhitePlayer", fields: [playerWhiteID], references: [id])
-  playerWhiteID String?
-  playerBlack Player? @relation("BlackPlayer", fields: [playerBlackID], references: [id])
-  playerBlackID String?
+  playerWhite Player @relation("WhitePlayer", fields: [playerWhiteID], references: [id])
+  playerWhiteID String
+  playerBlack Player @relation("BlackPlayer", fields: [playerBlackID], references: [id])
+  playerBlackID String
 
   winner Player? @relation("WinnerPlayer", fields: [winnerID], references: [id])
   winnerID String?
