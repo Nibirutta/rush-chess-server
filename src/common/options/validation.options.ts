@@ -20,4 +20,4 @@ export const ValidationOptions: ValidationPipeOptions = {
       errorsList,
     );
   },
-};
+} as const;

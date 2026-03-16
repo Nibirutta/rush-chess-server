@@ -6,7 +6,7 @@ import {
 } from '@nestjs/websockets';
 import { ValidationPipe, UsePipes, UseFilters } from '@nestjs/common';
 import { ValidationOptions } from 'src/common/options/validation.options';
-import { MESSAGES_PATTERN } from '../events/messages.pattern';
+import { INCOMING_MESSAGES } from '../messages/messages.pattern';
 import { ChessService } from './chess.service';
 import { Server } from 'socket.io';
 import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.filter';
@@ -22,7 +22,7 @@ export class ChessGateway {
 
   constructor(private readonly chessService: ChessService) {}
 
-  @SubscribeMessage(MESSAGES_PATTERN.TESTING)
+  @SubscribeMessage(INCOMING_MESSAGES.TESTING)
   testing(@MessageBody() data: string) {
     return data;
   }

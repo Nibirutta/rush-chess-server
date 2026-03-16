@@ -10,26 +10,21 @@ import {
 import { ValidationPipe, UsePipes, UseFilters } from '@nestjs/common';
 import { ValidationOptions } from 'src/common/options/validation.options';
 import { Socket, Server } from 'socket.io';
-import { MESSAGES_PATTERN } from '../events/messages.pattern';
-import { LobbyService } from './lobby.service';
 import {
-  PLAYER_EVENTS_PATTERN,
-  INVITE_EVENTS_PATTERN,
-  MESSAGE_EVENTS_PATTERN,
-} from '../events/events.pattern';
+  INCOMING_MESSAGES,
+  OUTGOING_MESSAGES,
+} from '../messages/messages.pattern';
+import { LobbyService } from './lobby.service';
 import { SendMessageDTO, IsTypingDTO } from '../dto/message.dto';
 import { PlayerSocketData } from '../../common/interfaces/socket-data.interface';
-import {
-  InviteResponseDTO,
-  OnInviteExpired,
-  SendInviteDTO,
-} from '../dto/invite.dto';
-import { OnEvent } from '@nestjs/event-emitter';
-import {
-  IsPlayerReadyDTO,
-  OnPlayerStatusChanged,
-} from '../dto/player-on-lobby.dto';
+import { InviteResponseDTO, SendInviteDTO } from '../dto/invite.dto';
+import { IsPlayerReadyDTO } from '../dto/is-player-ready.dto';
 import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.filter';
+import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
+import {
+  OnInviteExpired,
+  OnPlayerStatusChanged,
+} from 'src/common/event/domain.events';
 
 @WebSocketGateway({
   namespace: 'lobby',
@@ -58,16 +53,13 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     setTimeout(() => {
       const playersOnline = this.lobbyService.getOnlinePlayers();
 
-      this.server.emit(
-        PLAYER_EVENTS_PATTERN.BROADCAST_ONLINE_PLAYERS,
-        playersOnline,
-      );
+      this.server.emit(OUTGOING_MESSAGES.NOTIFY_ONLINE_PLAYERS, playersOnline);
     }, 50); // Added 50 miliseconds because of race conditions, must be executed only after connection
   }
 
   // Messages
 
-  @SubscribeMessage(MESSAGES_PATTERN.SEND_MESSAGE)
+  @SubscribeMessage(INCOMING_MESSAGES.SEND_MESSAGE)
   async sendMessage(
     @MessageBody() sendMessageDTO: SendMessageDTO,
     @ConnectedSocket() client: Socket,
@@ -79,12 +71,12 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       playerData.nickname,
     );
 
-    this.server.emit(MESSAGE_EVENTS_PATTERN.ON_MESSAGE, {
+    this.server.emit(OUTGOING_MESSAGES.NOTIFY_MESSAGE, {
       message: createdMessage.content,
     });
   }
 
-  @SubscribeMessage(MESSAGES_PATTERN.TYPING)
+  @SubscribeMessage(INCOMING_MESSAGES.IS_PLAYER_TYPING)
   typing(
     @MessageBody() isTypingDTO: IsTypingDTO,
     @ConnectedSocket() client: Socket,
@@ -92,13 +84,13 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const isTyping = isTypingDTO.isTyping;
     const playerData = client.data as PlayerSocketData;
 
-    client.broadcast.emit(MESSAGE_EVENTS_PATTERN.ON_TYPING, {
+    client.broadcast.emit(OUTGOING_MESSAGES.NOTIFY_TYPING, {
       player: playerData.nickname,
       isTyping: isTyping,
     });
   }
 
-  @SubscribeMessage(MESSAGES_PATTERN.INVITE)
+  @SubscribeMessage(INCOMING_MESSAGES.SEND_INVITATION)
   invite(
     @MessageBody() sendInviteDTO: SendInviteDTO,
     @ConnectedSocket() client: Socket,
@@ -114,26 +106,26 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .in([client.id, inviteTicket.opponentSocketID])
       .socketsJoin(inviteTicket.waitRoomID);
 
-    client.to(inviteTicket.waitRoomID).emit(INVITE_EVENTS_PATTERN.ON_INVITE, {
+    client.to(inviteTicket.waitRoomID).emit(OUTGOING_MESSAGES.NOTIFY_INVITE, {
       challenger: challengerData.nickname,
       waitRoomID: inviteTicket.waitRoomID,
     });
   }
 
-  @SubscribeMessage(MESSAGES_PATTERN.INVITE_RESPONSE)
+  @SubscribeMessage(INCOMING_MESSAGES.RESPONSE_TO_INVITE)
   acceptInvite(@MessageBody() inviteResponseDTO: InviteResponseDTO) {
     try {
       if (inviteResponseDTO.accepted) {
         this.server
           .to(inviteResponseDTO.waitRoomID)
-          .emit(INVITE_EVENTS_PATTERN.ON_INVITE_ACCEPTED, {
+          .emit(OUTGOING_MESSAGES.NOTIFY_INVITE_ACCEPTED, {
             message: 'Chess duel is ready to start',
             duelRoomID: inviteResponseDTO.waitRoomID,
           });
       } else {
         this.server
           .to(inviteResponseDTO.waitRoomID)
-          .emit(INVITE_EVENTS_PATTERN.ON_INVITE_REFUSED, {
+          .emit(OUTGOING_MESSAGES.NOTIFY_INVITE_NOT_ACCEPTED, {
             message: `Challenge refused`,
           });
       }
@@ -147,7 +139,7 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage(MESSAGES_PATTERN.IS_READY)
+  @SubscribeMessage(INCOMING_MESSAGES.IS_READY)
   isPlayerReady(@MessageBody() isPlayerReadyDTO: IsPlayerReadyDTO) {
     this.lobbyService.isPlayerReady(
       isPlayerReadyDTO.playerID,
@@ -157,19 +149,19 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Events
 
-  @OnEvent(INVITE_EVENTS_PATTERN.ON_INVITE_EXPIRED)
+  @OnDomainEvents('on_invite_expired')
   inviteExpired(payload: OnInviteExpired) {
     this.server
       .to(payload.waitRoomID)
-      .emit(INVITE_EVENTS_PATTERN.ON_INVITE_EXPIRED, {
+      .emit(OUTGOING_MESSAGES.NOTIFY_INVITE_EXPIRED, {
         message: 'Invite expired',
       });
 
     this.server.socketsLeave(payload.waitRoomID);
   }
 
-  @OnEvent(PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED)
+  @OnDomainEvents('on_player_status_changed')
   playerStatusChanged(payload: OnPlayerStatusChanged) {
-    this.server.emit(PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED, payload);
+    this.server.emit(OUTGOING_MESSAGES.NOTIFY_PLAYER_UPDATE, payload);
   }
 }

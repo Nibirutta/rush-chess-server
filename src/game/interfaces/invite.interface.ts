@@ -3,3 +3,8 @@ export interface InviteSession {
   challengerID: string;
   opponentID: string;
 }
+
+export interface InviteTicket {
+  waitRoomID: string;
+  opponentSocketID: string;
+}

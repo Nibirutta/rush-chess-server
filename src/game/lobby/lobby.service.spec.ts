@@ -1,29 +1,25 @@
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { LobbyService } from './lobby.service';
 import { Test, TestingModule } from '@nestjs/testing';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from 'src/database/database.service';
 import { PlayerSocketData } from 'src/common/interfaces/socket-data.interface';
 import { PaginationPropertiesDTO } from '../dto/pagination-properties.dto';
-import {
-  INVITE_EVENTS_PATTERN,
-  PLAYER_EVENTS_PATTERN,
-} from '../events/events.pattern';
-import { PlayerLobbyStatus } from '../interfaces/player-on-lobby.interface';
+import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
+import { PlayerStatus } from 'src/common/enums/player-status.enum';
 import {
   InvalidOpponentError,
   PlayerIsOfflineError,
   SessionNotFoundError,
 } from 'src/common/errors/lobby.errors';
-import { InviteTicket } from '../dto/invite.dto';
+import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
 
 describe('LobbyService', () => {
   let lobbyService: LobbyService;
-  let eventEmitterMock: DeepMockProxy<EventEmitter2>;
+  let domainEventEmitterMock: DeepMockProxy<DomainEventEmitterService>;
   let databaseMock: DeepMockProxy<DatabaseService>;
 
   beforeEach(async () => {
-    eventEmitterMock = mockDeep<EventEmitter2>();
+    domainEventEmitterMock = mockDeep<DomainEventEmitterService>();
     databaseMock = mockDeep<DatabaseService>();
 
     jest.useFakeTimers();
@@ -32,7 +28,10 @@ describe('LobbyService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LobbyService,
-        { provide: EventEmitter2, useValue: eventEmitterMock },
+        {
+          provide: DomainEventEmitterService,
+          useValue: domainEventEmitterMock,
+        },
         { provide: DatabaseService, useValue: databaseMock },
       ],
     }).compile();
@@ -135,20 +134,20 @@ describe('LobbyService', () => {
         'socket2',
       );
 
-      const emitSpy = jest.spyOn(eventEmitterMock, 'emit');
+      const emitSpy = jest.spyOn(domainEventEmitterMock, 'emit');
 
       const result = lobbyService.invite(challengerID, opponentID);
 
       expect(emitSpy).toHaveBeenCalledWith(
-        PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
+        DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
         expect.anything(),
       );
       const players = lobbyService.getOnlinePlayers();
       players.forEach((player) => {
-        expect(player.status).toBe(PlayerLobbyStatus.Awaiting);
+        expect(player.status).toBe(PlayerStatus.Awaiting);
       });
 
-      expect(result).toBeInstanceOf(InviteTicket);
+      expect(result).toBeDefined();
       expect(result.opponentSocketID).toStrictEqual('socket2');
     });
 
@@ -163,23 +162,23 @@ describe('LobbyService', () => {
         'socket2',
       );
 
-      const emitSpy = jest.spyOn(eventEmitterMock, 'emit');
+      const emitSpy = jest.spyOn(domainEventEmitterMock, 'emit');
 
       lobbyService.invite(challengerID, opponentID);
 
       jest.advanceTimersByTime(15000);
 
       expect(emitSpy).toHaveBeenCalledWith(
-        PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
+        DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
         expect.anything(),
       );
       const players = lobbyService.getOnlinePlayers();
       players.forEach((player) => {
-        expect(player.status).toBe(PlayerLobbyStatus.Ready);
+        expect(player.status).toBe(PlayerStatus.Ready);
       });
 
       expect(emitSpy).toHaveBeenCalledWith(
-        INVITE_EVENTS_PATTERN.ON_INVITE_EXPIRED,
+        DOMAIN_EVENTS_PATTERN.ON_INVITE_EXPIRED,
         expect.anything(),
       );
     });
@@ -221,7 +220,7 @@ describe('LobbyService', () => {
 
       const invitation = lobbyService.invite(challengerID, opponentID);
       const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
-      const emitSpy = jest.spyOn(eventEmitterMock, 'emit');
+      const emitSpy = jest.spyOn(domainEventEmitterMock, 'emit');
 
       emitSpy.mockClear();
 
@@ -229,13 +228,13 @@ describe('LobbyService', () => {
 
       expect(clearTimeoutSpy).toHaveBeenCalled();
       expect(emitSpy).toHaveBeenCalledWith(
-        PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
+        DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
         expect.anything(),
       );
       expect(emitSpy).toHaveBeenCalledTimes(2);
       const players = lobbyService.getOnlinePlayers();
       players.forEach((player) =>
-        expect(player.status).toBe(PlayerLobbyStatus.On_Battle),
+        expect(player.status).toBe(PlayerStatus.On_Battle),
       );
     });
 
@@ -252,7 +251,7 @@ describe('LobbyService', () => {
 
       const invitation = lobbyService.invite(challengerID, opponentID);
       const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
-      const emitSpy = jest.spyOn(eventEmitterMock, 'emit');
+      const emitSpy = jest.spyOn(domainEventEmitterMock, 'emit');
 
       emitSpy.mockClear();
 
@@ -260,13 +259,13 @@ describe('LobbyService', () => {
 
       expect(clearTimeoutSpy).toHaveBeenCalled();
       expect(emitSpy).toHaveBeenCalledWith(
-        PLAYER_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
+        DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
         expect.anything(),
       );
       expect(emitSpy).toHaveBeenCalledTimes(2);
       const players = lobbyService.getOnlinePlayers();
       players.forEach((player) =>
-        expect(player.status).toBe(PlayerLobbyStatus.Ready),
+        expect(player.status).toBe(PlayerStatus.Ready),
       );
     });
 
