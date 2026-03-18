@@ -4,7 +4,7 @@ import { DatabaseService } from 'src/database/database.service';
 import { Prisma } from 'src/generated/prisma/client';
 import { GameData, GameState } from '../interfaces/match.interface';
 
-Injectable();
+@Injectable()
 export class ChessService {
   private matchesGoingOn: Map<string, GameData> = new Map();
 
@@ -25,7 +25,7 @@ export class ChessService {
     return { playerAsWhite, playerAsBlack };
   }
 
-  private setInitialGameData(
+  private async initializeMatchData(
     matchID: string,
     playerAsWhite: string,
     playerAsBlack: string,
@@ -49,6 +49,10 @@ export class ChessService {
       },
     };
 
+    await this.databaseService.match.create({
+      data: matchData,
+    });
+
     this.matchesGoingOn.set(matchData.id, {
       gameState: initialGameState,
       playerAsWhite: playerAsWhite,
@@ -64,16 +68,10 @@ export class ChessService {
       payload.opponentID,
     );
 
-    const matchData = this.setInitialGameData(
+    await this.initializeMatchData(
       payload.matchID,
       playerAsWhite,
       playerAsBlack,
     );
-
-    await this.databaseService.match.create({
-      data: matchData,
-    });
-
-    console.log(matchData);
   }
 }
