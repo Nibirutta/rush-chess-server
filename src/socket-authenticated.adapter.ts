@@ -26,8 +26,7 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
   ) => {
     try {
       const accessToken =
-        (socket.handshake.auth.accessToken as string) ||
-        (socket.handshake.query.accessToken as string);
+        socket.handshake.auth.accessToken || socket.handshake.query.accessToken;
       const sessionToken = cookie.parse(socket.handshake.headers.cookie || '')[
         'sessionToken'
       ];

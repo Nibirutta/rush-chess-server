@@ -83,8 +83,8 @@ model Message {
 model Match {
   id String @id
   status MatchStatus @default(WAITING)
-  gameState Json @db.Json 
 
+  gameState GameState?
   movements Movement[]
 
   playerWhite Player @relation("WhitePlayer", fields: [playerWhiteID], references: [id])
@@ -102,6 +102,14 @@ model Match {
   endedAt DateTime?
 
   @@index([status])
+}
+
+model GameState {
+  id Int @default(autoincrement()) @id
+  match Match @relation(fields: [matchID], references: [id])
+  matchID String @unique
+
+  FEN String
 }
 
 model Movement {
