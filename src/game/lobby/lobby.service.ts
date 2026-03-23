@@ -15,11 +15,12 @@ import {
 } from 'src/common/errors/lobby.errors';
 import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
+import { PlayerID, WaitRoomID } from '../types/game.types';
 
 @Injectable()
 export class LobbyService {
-  private onlinePlayers: Map<string, PlayerLobbyData> = new Map();
-  private inviteMapping: Map<string, InviteSession> = new Map();
+  private onlinePlayers: Map<PlayerID, PlayerLobbyData> = new Map();
+  private inviteMapping: Map<WaitRoomID, InviteSession> = new Map();
 
   constructor(
     private readonly databaseService: DatabaseService,
@@ -84,6 +85,7 @@ export class LobbyService {
   }
 
   invite(challengerID: string, opponentID: string) {
+    const inviteExpirationTimeInMS = 15000;
     const foundOpponent = this.onlinePlayers.get(opponentID);
 
     if (!foundOpponent) throw new PlayerIsOfflineError('Opponent is offline');
@@ -101,7 +103,7 @@ export class LobbyService {
       this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_INVITE_EXPIRED, {
         waitRoomID: waitRoomID,
       });
-    }, 15000);
+    }, inviteExpirationTimeInMS);
 
     this.inviteMapping.set(waitRoomID, {
       timeout: inviteExpirationTimeout,

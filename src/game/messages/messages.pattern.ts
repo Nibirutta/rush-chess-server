@@ -5,6 +5,7 @@ export const INCOMING_MESSAGES = {
   SEND_INVITATION: 'send_invitation',
   RESPONSE_TO_INVITE: 'response_to_invite',
   IS_READY: 'is_ready',
+  JOIN_MATCH: 'join_match',
 } as const;
 
 export const OUTGOING_MESSAGES = {
@@ -16,4 +17,8 @@ export const OUTGOING_MESSAGES = {
   NOTIFY_INVITE_NOT_ACCEPTED: 'notify_invite_not_accepted',
   NOTIFY_INVITE_EXPIRED: 'notify_invite_expired',
   NOTIFY_PLAYER_UPDATE: 'notify_player_update',
+  NOTIFY_MATCH_EXPIRED: 'notify_match_expired',
+  NOTIFY_INVALID_MATCH: 'notify_invalid_match',
+  NOTIFY_MATCH_COUNTDOWN: 'notify_match_countdown',
+  NOTIFY_START_MATCH: 'notify_start_match',
 } as const;

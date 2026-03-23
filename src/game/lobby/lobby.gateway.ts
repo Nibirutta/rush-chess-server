@@ -97,6 +97,7 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
   ) {
     const challengerData = client.data as PlayerSocketData;
+    const challengerSocketID = client.id;
 
     const inviteTicket = this.lobbyService.invite(
       challengerData.playerID,
@@ -104,7 +105,7 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     this.server
-      .in([client.id, inviteTicket.opponentSocketID])
+      .in([challengerSocketID, inviteTicket.opponentSocketID])
       .socketsJoin(inviteTicket.waitRoomID);
 
     client.to(inviteTicket.waitRoomID).emit(OUTGOING_MESSAGES.NOTIFY_INVITE, {
