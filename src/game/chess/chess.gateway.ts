@@ -18,6 +18,7 @@ import { SearchMatchDTO } from '../dto/search-match.dto';
 import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
 import { OnMatchExpired } from 'src/common/event/domain.events';
+import { MakeMoveDTO } from '../dto/match.dto';
 
 @WebSocketGateway({
   namespace: 'chess',
@@ -68,7 +69,7 @@ export class ChessGateway {
 
       this.server.in(matchID).emit(OUTGOING_MESSAGES.NOTIFY_MATCH_COUNTDOWN, {
         countdownInMS: countdownInMilliseconds,
-        matchData: startedMatch?.gameState,
+        matchData: startedMatch,
       });
 
       setTimeout(() => {
@@ -81,6 +82,22 @@ export class ChessGateway {
     const connectedSockets = await this.server.in(room).fetchSockets();
 
     return connectedSockets.length;
+  }
+
+  @SubscribeMessage(INCOMING_MESSAGES.MAKE_MOVE)
+  async makeMove(@MessageBody() makeMoveDTO: MakeMoveDTO) {
+    const { matchID, from, to, promotion } = makeMoveDTO;
+
+    const newMatchData = await this.chessService.makeMove(
+      matchID,
+      from,
+      to,
+      promotion,
+    );
+
+    this.server.to(matchID).emit(OUTGOING_MESSAGES.NOTIFY_NEW_MATCH_STATE, {
+      matchData: newMatchData,
+    });
   }
 
   // Events

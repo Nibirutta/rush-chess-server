@@ -6,6 +6,11 @@ import { GameData, GameState } from '../interfaces/match.interface';
 import { MatchID } from '../types/game.types';
 import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
+import { Chess } from 'chess.js';
+import {
+  InvalidMovementException,
+  MatchNotFoundException,
+} from 'src/common/errors/match.errors';
 
 @Injectable()
 export class ChessService {
@@ -70,11 +75,7 @@ export class ChessService {
     playerAsBlack: string,
   ) {
     const matchData: Prisma.MatchCreateInput = {
-      gameState: {
-        create: {
-          FEN: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-        },
-      },
+      gameState: {},
       id: matchID,
       playerBlack: {
         connect: {
@@ -96,7 +97,7 @@ export class ChessService {
     });
 
     const gameState: GameState = {
-      FEN: createdMatch.gameState!.FEN,
+      FEN: createdMatch.gameState!.FEN.at(-1)!,
     };
 
     this.activeMatches.set(matchData.id, {
@@ -143,12 +144,10 @@ export class ChessService {
       )
         return false;
 
-      console.log(retrivedMatch);
-
       const retrievedActiveMatch: GameData = {
         matchID: retrivedMatch.id,
         gameState: {
-          FEN: retrivedMatch.gameState!.FEN,
+          FEN: retrivedMatch.gameState!.FEN.at(-1)!,
         },
         playerAsWhite: retrivedMatch.playerWhiteID,
         playerAsBlack: retrivedMatch.playerBlackID,
@@ -160,5 +159,79 @@ export class ChessService {
     }
 
     return true;
+  }
+
+  async makeMove(
+    matchID: string,
+    from: string,
+    to: string,
+    promotion?: string,
+  ) {
+    const foundMatch = this.activeMatches.get(matchID);
+
+    if (!foundMatch) throw new MatchNotFoundException('Match not found');
+
+    try {
+      const chessState = new Chess(foundMatch.gameState.FEN);
+
+      chessState.move(
+        { from: from, to: to, promotion: promotion },
+        { strict: true },
+      );
+
+      foundMatch.gameState.FEN = chessState.fen();
+
+      const updatedGameState = await this.databaseService.gameState.update({
+        where: { matchID: matchID },
+        data: {
+          FEN: {
+            push: foundMatch.gameState.FEN,
+          },
+        },
+      });
+
+      const wasThreefoldRepetition = this.wasThreefoldRepetitionOccuried(
+        updatedGameState.FEN,
+      );
+
+      if (chessState.isCheck()) {
+        // TODO
+      }
+
+      if (wasThreefoldRepetition) {
+        // TODO
+      }
+
+      if (chessState.isDraw() || chessState.isStalemate()) {
+        // TODO
+      }
+
+      if (chessState.isCheckmate()) {
+        // TODO
+      }
+
+      return foundMatch;
+    } catch {
+      throw new InvalidMovementException('Invalid movement, try it again');
+    }
+  }
+
+  wasThreefoldRepetitionOccuried(FEN: string[]) {
+    const singles = new Set();
+    const duplicates = new Set();
+
+    for (const element of FEN) {
+      if (!singles.has(element)) {
+        singles.add(element);
+      } else {
+        duplicates.add(element);
+      }
+
+      if (duplicates.size >= 3) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

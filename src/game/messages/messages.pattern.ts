@@ -6,6 +6,7 @@ export const INCOMING_MESSAGES = {
   RESPONSE_TO_INVITE: 'response_to_invite',
   IS_READY: 'is_ready',
   JOIN_MATCH: 'join_match',
+  MAKE_MOVE: 'make_move',
 } as const;
 
 export const OUTGOING_MESSAGES = {
@@ -21,4 +22,5 @@ export const OUTGOING_MESSAGES = {
   NOTIFY_INVALID_MATCH: 'notify_invalid_match',
   NOTIFY_MATCH_COUNTDOWN: 'notify_match_countdown',
   NOTIFY_START_MATCH: 'notify_start_match',
+  NOTIFY_NEW_MATCH_STATE: 'notify_new_match_state',
 } as const;

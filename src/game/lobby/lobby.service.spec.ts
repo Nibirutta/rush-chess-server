@@ -231,7 +231,7 @@ describe('LobbyService', () => {
         DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
         expect.anything(),
       );
-      expect(emitSpy).toHaveBeenCalledTimes(2);
+      expect(emitSpy).toHaveBeenCalledTimes(3);
       const players = lobbyService.getOnlinePlayers();
       players.forEach((player) =>
         expect(player.status).toBe(PlayerStatus.On_Battle),
