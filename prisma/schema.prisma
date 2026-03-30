@@ -43,7 +43,6 @@ model Player {
 
   tokens Token[]
   messages Message[]
-  movements Movement[]
 
   matchesAsWhite Match[] @relation("WhitePlayer")
   matchesAsBlack Match[] @relation("BlackPlayer")
@@ -85,7 +84,6 @@ model Match {
   status MatchStatus @default(WAITING)
 
   gameState GameState?
-  movements Movement[]
 
   playerWhite Player @relation("WhitePlayer", fields: [playerWhiteID], references: [id])
   playerWhiteID String
@@ -106,28 +104,9 @@ model Match {
 
 model GameState {
   id Int @default(autoincrement()) @id
-  match Match @relation(fields: [matchID], references: [id])
+  
+  match Match @relation(fields: [matchID], references: [id], onDelete: Cascade)
   matchID String @unique
 
-  FEN String
-}
-
-model Movement {
-  id Int @default(autoincrement()) @id
-  from String
-  to String
-  piece Pieces
-  promotion Pieces?
-  turnNumber Int
-
-  effects Json? @db.Json
-
-  match Match @relation(fields: [matchID], references: [id])
-  matchID String
-  player Player @relation(fields: [playerID], references: [id])
-  playerID String
-
-  createdAt DateTime @default(now())
-
-  @@index([matchID, turnNumber])
+  FEN String[] @default(["rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"])
 }

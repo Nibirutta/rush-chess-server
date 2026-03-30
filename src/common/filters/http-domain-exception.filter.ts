@@ -19,19 +19,21 @@ import {
   SessionNotFoundError,
 } from '../errors/lobby.errors';
 import { InputFieldIncorrectError } from '../errors/validation.errors';
+import { MatchNotFoundException } from '../errors/match.errors';
 
 @Catch(DomainError)
 export class HttpDomainExceptionFilter extends BaseExceptionFilter {
   private readonly errorStatusMapping = new Map<Type<DomainError>, HttpStatus>([
-    [FailedTokenValidationError, HttpStatus.FORBIDDEN],
     [SecretMapEmptyError, HttpStatus.INTERNAL_SERVER_ERROR],
-    [ValidationTokenMissingError, HttpStatus.NOT_FOUND],
     [InconsistentTokenInfoError, HttpStatus.FORBIDDEN],
+    [FailedTokenValidationError, HttpStatus.FORBIDDEN],
     [InvalidPasswordError, HttpStatus.UNAUTHORIZED],
     [InvalidUsernameError, HttpStatus.UNAUTHORIZED],
     [PlayerIsOfflineError, HttpStatus.NOT_FOUND],
     [PlayerNotFoundError, HttpStatus.NOT_FOUND],
     [SessionNotFoundError, HttpStatus.NOT_FOUND],
+    [ValidationTokenMissingError, HttpStatus.NOT_FOUND],
+    [MatchNotFoundException, HttpStatus.NOT_FOUND],
     [InputFieldIncorrectError, HttpStatus.BAD_REQUEST],
     [InvalidOpponentError, HttpStatus.BAD_REQUEST],
   ]);
