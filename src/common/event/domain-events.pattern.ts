@@ -3,4 +3,7 @@ export const DOMAIN_EVENTS_PATTERN = {
   ON_PLAYER_STATUS_CHANGED: 'on_player_status_changed',
   ON_MATCH_ACCEPTED: 'on_match_accepted',
   ON_MATCH_EXPIRED: 'on_match_expired',
+  ON_PLAYER_IN_CHECK: 'on_player_in_check',
+  ON_THREEFOLD_REPETITION: 'on_threefold_repetition',
+  ON_DRAW: 'on_draw',
 } as const;

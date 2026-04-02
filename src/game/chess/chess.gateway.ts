@@ -17,7 +17,12 @@ import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.
 import { SearchMatchDTO } from '../dto/search-match.dto';
 import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
-import { OnMatchExpired } from 'src/common/event/domain.events';
+import {
+  OnDraw,
+  OnMatchExpired,
+  OnPlayerInCheck,
+  OnThreefoldRepetition,
+} from 'src/common/event/domain.events';
 import { MakeMoveDTO } from '../dto/match.dto';
 
 @WebSocketGateway({
@@ -105,5 +110,28 @@ export class ChessGateway {
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED)
   deleteExpiredRoom(payload: OnMatchExpired) {
     this.server.in(payload.matchID).disconnectSockets();
+  }
+
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_PLAYER_IN_CHECK)
+  notifyPlayerInCheck(payload: OnPlayerInCheck) {
+    this.server
+      .to(payload.playerID)
+      .emit(OUTGOING_MESSAGES.NOTIFY_PLAYER_IN_CHECK);
+  }
+
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_THREEFOLD_REPETITION)
+  notifyThreefoldRepetition(payload: OnThreefoldRepetition) {
+    this.server
+      .in(payload.matchID)
+      .emit(OUTGOING_MESSAGES.NOTIFY_DRAW_CLAIM_AVAILABLE);
+  }
+
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_DRAW)
+  notifyDraw(payload: OnDraw) {
+    this.server.in(payload.matchID).emit(OUTGOING_MESSAGES.NOTIFY_DRAW, {
+      drawBy: payload.drawType,
+    });
+
+    this.server.socketsLeave(payload.matchID);
   }
 }

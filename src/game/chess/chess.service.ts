@@ -97,7 +97,7 @@ export class ChessService {
     });
 
     const gameState: GameState = {
-      FEN: createdMatch.gameState!.FEN.at(-1)!,
+      FEN: createdMatch.gameState!.FEN.at(0)!,
     };
 
     this.activeMatches.set(matchData.id, {
@@ -112,7 +112,7 @@ export class ChessService {
 
   startMatch(matchID: string) {
     void this.databaseService.match.update({
-      data: { status: 'IN_PROGRESS' },
+      data: { status: 'IN_PROGRESS', startedAt: new Date() },
       where: { id: matchID },
     });
 
@@ -190,25 +190,17 @@ export class ChessService {
         },
       });
 
-      const wasThreefoldRepetition = this.wasThreefoldRepetitionOccuried(
-        updatedGameState.FEN,
+      this.notifyIfThreefoldRepetitionOccuried(updatedGameState.FEN, matchID);
+
+      this.notifyIfPlayerInCheck(
+        chessState,
+        foundMatch.playerAsWhite,
+        foundMatch.playerAsBlack,
       );
 
-      if (chessState.isCheck()) {
-        // TODO
-      }
+      this.handleDrawConditions(chessState, matchID);
 
-      if (wasThreefoldRepetition) {
-        // TODO
-      }
-
-      if (chessState.isDraw() || chessState.isStalemate()) {
-        // TODO
-      }
-
-      if (chessState.isCheckmate()) {
-        // TODO
-      }
+      this.handleCheckmateEndGame(chessState);
 
       return foundMatch;
     } catch {
@@ -216,15 +208,30 @@ export class ChessService {
     }
   }
 
+  notifyIfThreefoldRepetitionOccuried(FEN: string[], matchID: string) {
+    const wasThreefoldRepetition = this.wasThreefoldRepetitionOccuried(FEN);
+
+    if (wasThreefoldRepetition) {
+      this.domainEventEmitter.emit(
+        DOMAIN_EVENTS_PATTERN.ON_THREEFOLD_REPETITION,
+        {
+          matchID: matchID,
+        },
+      );
+    }
+  }
+
   wasThreefoldRepetitionOccuried(FEN: string[]) {
     const singles = new Set();
     const duplicates = new Set();
 
-    for (const element of FEN) {
-      if (!singles.has(element)) {
-        singles.add(element);
+    for (const notation of FEN) {
+      const chessPosition = notation.split(' ').at(0);
+
+      if (!singles.has(chessPosition)) {
+        singles.add(chessPosition);
       } else {
-        duplicates.add(element);
+        duplicates.add(chessPosition);
       }
 
       if (duplicates.size >= 3) {
@@ -233,5 +240,47 @@ export class ChessService {
     }
 
     return false;
+  }
+
+  notifyIfPlayerInCheck(
+    chessState: Chess,
+    playerAsWhite: string,
+    playerAsBlack: string,
+  ) {
+    if (chessState.isCheck()) {
+      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_PLAYER_IN_CHECK, {
+        playerID: chessState.turn() === 'w' ? playerAsWhite : playerAsBlack,
+      });
+    }
+  }
+
+  handleDrawConditions(chessState: Chess, matchID: string) {
+    if (
+      chessState.isDrawByFiftyMoves() ||
+      chessState.isInsufficientMaterial() ||
+      chessState.isStalemate()
+    ) {
+      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_DRAW, {
+        drawType: chessState.isDrawByFiftyMoves()
+          ? 'Draw by fifty moves'
+          : chessState.isInsufficientMaterial()
+            ? 'Draw by insufficient materials'
+            : 'Draw by stalemate',
+        matchID: matchID,
+      });
+
+      this.activeMatches.delete(matchID);
+
+      void this.databaseService.match.update({
+        where: { id: matchID },
+        data: { status: 'FINISHED', endedAt: new Date() },
+      });
+    }
+  }
+
+  handleCheckmateEndGame(chessState: Chess) {
+    if (chessState.isCheckmate()) {
+      // TODO
+    }
   }
 }

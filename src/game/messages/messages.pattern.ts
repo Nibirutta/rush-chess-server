@@ -23,4 +23,7 @@ export const OUTGOING_MESSAGES = {
   NOTIFY_MATCH_COUNTDOWN: 'notify_match_countdown',
   NOTIFY_START_MATCH: 'notify_start_match',
   NOTIFY_NEW_MATCH_STATE: 'notify_new_match_state',
+  NOTIFY_PLAYER_IN_CHECK: 'notify_player_in_check',
+  NOTIFY_DRAW_CLAIM_AVAILABLE: 'notify_draw_claim_avaliable',
+  NOTIFY_DRAW: 'notify_draw',
 } as const;
