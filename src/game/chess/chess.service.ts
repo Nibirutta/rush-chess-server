@@ -190,6 +190,8 @@ export class ChessService {
         },
       });
 
+      // TODO - make all verify methods to be executed only after move to avoid race conditions
+
       this.notifyIfThreefoldRepetitionOccuried(updatedGameState.FEN, matchID);
 
       this.notifyIfPlayerInCheck(
@@ -200,7 +202,7 @@ export class ChessService {
 
       this.handleDrawConditions(chessState, matchID);
 
-      this.handleCheckmateEndGame(chessState);
+      this.handleCheckmateEndGame(chessState, foundMatch);
 
       return foundMatch;
     } catch {
@@ -278,9 +280,43 @@ export class ChessService {
     }
   }
 
-  handleCheckmateEndGame(chessState: Chess) {
+  handleCheckmateEndGame(chessState: Chess, gameData: GameData) {
     if (chessState.isCheckmate()) {
-      // TODO
+      const [winner, loser] = this.getWinnerAndLoser(
+        chessState.turn(),
+        gameData,
+      );
+
+      this.activeMatches.delete(gameData.matchID);
+
+      void this.databaseService.match.update({
+        where: { id: gameData.matchID },
+        data: {
+          status: 'FINISHED',
+          winnerID: winner,
+          loserID: loser,
+          endedAt: new Date(),
+        },
+      });
+
+      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_CHECKMATE, {
+        matchID: gameData.matchID,
+        winnerID: winner,
+        loserID: loser,
+      });
     }
   }
+
+  getWinnerAndLoser(currentTurn: 'b' | 'w', gameData: GameData) {
+    const [winner, loser] =
+      currentTurn === 'b'
+        ? [gameData.playerAsWhite, gameData.playerAsBlack]
+        : [gameData.playerAsBlack, gameData.playerAsWhite];
+
+    return [winner, loser];
+  }
 }
+
+// TODO - verify why the timeout it is not working
+// TODO - change the logic behavior in the threefold repetition
+// TODO - improve code readability

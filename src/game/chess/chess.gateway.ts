@@ -18,6 +18,7 @@ import { SearchMatchDTO } from '../dto/search-match.dto';
 import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
 import {
+  OnCheckmate,
   OnDraw,
   OnMatchExpired,
   OnPlayerInCheck,
@@ -133,5 +134,13 @@ export class ChessGateway {
     });
 
     this.server.socketsLeave(payload.matchID);
+  }
+
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_CHECKMATE)
+  notifyCheckmate(payload: OnCheckmate) {
+    this.server.in(payload.matchID).emit(OUTGOING_MESSAGES.NOTIFY_CHECKMATE, {
+      winner: payload.winnerID,
+      loser: payload.loserID,
+    });
   }
 }

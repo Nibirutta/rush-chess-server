@@ -37,6 +37,12 @@ export interface OnDraw {
     | 'Draw by stalemate';
 }
 
+export interface OnCheckmate {
+  matchID: string;
+  winnerID: string;
+  loserID: string;
+}
+
 export type DomainEventsMap = {
   [DOMAIN_EVENTS_PATTERN.ON_INVITE_EXPIRED]: OnInviteExpired;
   [DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED]: OnPlayerStatusChanged;
@@ -45,4 +51,5 @@ export type DomainEventsMap = {
   [DOMAIN_EVENTS_PATTERN.ON_PLAYER_IN_CHECK]: OnPlayerInCheck;
   [DOMAIN_EVENTS_PATTERN.ON_THREEFOLD_REPETITION]: OnThreefoldRepetition;
   [DOMAIN_EVENTS_PATTERN.ON_DRAW]: OnDraw;
+  [DOMAIN_EVENTS_PATTERN.ON_CHECKMATE]: OnCheckmate;
 };

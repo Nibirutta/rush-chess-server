@@ -6,4 +6,5 @@ export const DOMAIN_EVENTS_PATTERN = {
   ON_PLAYER_IN_CHECK: 'on_player_in_check',
   ON_THREEFOLD_REPETITION: 'on_threefold_repetition',
   ON_DRAW: 'on_draw',
+  ON_CHECKMATE: 'on_checkmate',
 } as const;

@@ -26,4 +26,5 @@ export const OUTGOING_MESSAGES = {
   NOTIFY_PLAYER_IN_CHECK: 'notify_player_in_check',
   NOTIFY_DRAW_CLAIM_AVAILABLE: 'notify_draw_claim_avaliable',
   NOTIFY_DRAW: 'notify_draw',
+  NOTIFY_CHECKMATE: 'notify_checkmate',
 } as const;
