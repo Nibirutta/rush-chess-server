@@ -49,8 +49,7 @@ export class ChessGateway {
   ) {
     const matchID = searchMatchDTO.matchID;
 
-    const isMatchActive =
-      await this.chessService.verifyIfMatchIsActive(matchID);
+    const isMatchActive = await this.chessService.loadMatchIfActive(matchID);
 
     if (!isMatchActive) {
       client.emit(OUTGOING_MESSAGES.NOTIFY_INVALID_MATCH);

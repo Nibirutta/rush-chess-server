@@ -127,7 +127,7 @@ export class ChessService {
     return this.activeMatches.get(matchID);
   }
 
-  async verifyIfMatchIsActive(matchID: MatchID) {
+  async loadMatchIfActive(matchID: MatchID) {
     const activeMatch = this.activeMatches.get(matchID);
 
     if (!activeMatch) {
@@ -225,21 +225,16 @@ export class ChessService {
   }
 
   wasThreefoldRepetitionOccuried(FEN: string[]) {
-    const singles = new Set();
-    const duplicates = new Set();
+    const repeatedPositionsMap = new Map<string, number>();
 
     for (const notation of FEN) {
-      const chessPosition = notation.split(' ').at(0);
+      const chessPosition = notation.split(' ').at(0)!;
+      const currentCount = repeatedPositionsMap.get(chessPosition) || 0;
+      const newCount = currentCount + 1;
 
-      if (!singles.has(chessPosition)) {
-        singles.add(chessPosition);
-      } else {
-        duplicates.add(chessPosition);
-      }
+      if (newCount >= 3) return true;
 
-      if (duplicates.size >= 3) {
-        return true;
-      }
+      repeatedPositionsMap.set(chessPosition, newCount);
     }
 
     return false;
@@ -317,6 +312,3 @@ export class ChessService {
     return [winner, loser];
   }
 }
-
-// TODO - change the logic behavior in the threefold repetition
-// TODO - improve code readability
