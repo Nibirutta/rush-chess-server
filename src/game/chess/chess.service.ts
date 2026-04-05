@@ -38,17 +38,18 @@ export class ChessService {
     const timeoutToExpireMatch = setTimeout(() => {
       void (async () => {
         try {
+          this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED, {
+            matchID: payload.matchID,
+          });
+
           this.activeMatches.delete(payload.matchID);
           await this.databaseService.match.delete({
             where: { id: payload.matchID },
           });
-          this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED, {
-            matchID: payload.matchID,
-          });
         } catch (error) {
           console.log(error);
         }
-      });
+      })();
     }, matchExpirationTimeInMS);
 
     this.matchTimeout.set(payload.matchID, timeoutToExpireMatch);
@@ -317,6 +318,5 @@ export class ChessService {
   }
 }
 
-// TODO - verify why the timeout it is not working
 // TODO - change the logic behavior in the threefold repetition
 // TODO - improve code readability
