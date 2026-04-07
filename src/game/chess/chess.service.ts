@@ -76,7 +76,9 @@ export class ChessService {
     playerAsBlack: string,
   ) {
     const matchData: Prisma.MatchCreateInput = {
-      gameState: {},
+      gameState: {
+        create: {},
+      },
       id: matchID,
       playerBlack: {
         connect: {
@@ -98,7 +100,7 @@ export class ChessService {
     });
 
     const gameState: GameState = {
-      FEN: createdMatch.gameState!.FEN.at(0)!,
+      fenHistory: createdMatch.gameState!.FEN,
     };
 
     this.activeMatches.set(matchData.id, {
@@ -148,7 +150,7 @@ export class ChessService {
       const retrievedActiveMatch: GameData = {
         matchID: retrivedMatch.id,
         gameState: {
-          FEN: retrivedMatch.gameState!.FEN.at(-1)!,
+          fenHistory: retrivedMatch.gameState!.FEN,
         },
         playerAsWhite: retrivedMatch.playerWhiteID,
         playerAsBlack: retrivedMatch.playerBlackID,
@@ -173,37 +175,23 @@ export class ChessService {
     if (!foundMatch) throw new MatchNotFoundException('Match not found');
 
     try {
-      const chessState = new Chess(foundMatch.gameState.FEN);
+      const chessState = new Chess(foundMatch.gameState.fenHistory.at(-1));
 
       chessState.move(
         { from: from, to: to, promotion: promotion },
         { strict: true },
       );
 
-      foundMatch.gameState.FEN = chessState.fen();
+      foundMatch.gameState.fenHistory.push(chessState.fen());
 
-      const updatedGameState = await this.databaseService.gameState.update({
+      await this.databaseService.gameState.update({
         where: { matchID: matchID },
         data: {
           FEN: {
-            push: foundMatch.gameState.FEN,
+            push: chessState.fen(),
           },
         },
       });
-
-      // TODO - make all verify methods to be executed only after move to avoid race conditions
-
-      this.notifyIfThreefoldRepetitionOccuried(updatedGameState.FEN, matchID);
-
-      this.notifyIfPlayerInCheck(
-        chessState,
-        foundMatch.playerAsWhite,
-        foundMatch.playerAsBlack,
-      );
-
-      this.handleDrawConditions(chessState, matchID);
-
-      this.handleCheckmateEndGame(chessState, foundMatch);
 
       return foundMatch;
     } catch {
@@ -211,23 +199,35 @@ export class ChessService {
     }
   }
 
-  notifyIfThreefoldRepetitionOccuried(FEN: string[], matchID: string) {
-    const wasThreefoldRepetition = this.wasThreefoldRepetitionOccuried(FEN);
+  verifyMatchCurrentState(gameData: GameData) {
+    this.notifyIfThreefoldRepetitionOccuried(gameData);
+
+    this.notifyIfPlayerInCheck(gameData);
+
+    this.handleDrawConditions(gameData);
+
+    this.handleCheckmateEndGame(gameData);
+  }
+
+  notifyIfThreefoldRepetitionOccuried(gameData: GameData) {
+    const wasThreefoldRepetition = this.wasThreefoldRepetitionOccuried(
+      gameData.gameState.fenHistory,
+    );
 
     if (wasThreefoldRepetition) {
       this.domainEventEmitter.emit(
         DOMAIN_EVENTS_PATTERN.ON_THREEFOLD_REPETITION,
         {
-          matchID: matchID,
+          matchID: gameData.matchID,
         },
       );
     }
   }
 
-  wasThreefoldRepetitionOccuried(FEN: string[]) {
+  wasThreefoldRepetitionOccuried(fenHistory: string[]) {
     const repeatedPositionsMap = new Map<string, number>();
 
-    for (const notation of FEN) {
+    for (const notation of fenHistory) {
       const chessPosition = notation.split(' ').at(0)!;
       const currentCount = repeatedPositionsMap.get(chessPosition) || 0;
       const newCount = currentCount + 1;
@@ -240,19 +240,22 @@ export class ChessService {
     return false;
   }
 
-  notifyIfPlayerInCheck(
-    chessState: Chess,
-    playerAsWhite: string,
-    playerAsBlack: string,
-  ) {
+  notifyIfPlayerInCheck(gameData: GameData) {
+    const chessState = new Chess(gameData.gameState.fenHistory.at(-1));
+
     if (chessState.isCheck()) {
       this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_PLAYER_IN_CHECK, {
-        playerID: chessState.turn() === 'w' ? playerAsWhite : playerAsBlack,
+        playerID:
+          chessState.turn() === 'w'
+            ? gameData.playerAsWhite
+            : gameData.playerAsBlack,
       });
     }
   }
 
-  handleDrawConditions(chessState: Chess, matchID: string) {
+  handleDrawConditions(gameData: GameData) {
+    const chessState = new Chess(gameData.gameState.fenHistory.at(-1));
+
     if (
       chessState.isDrawByFiftyMoves() ||
       chessState.isInsufficientMaterial() ||
@@ -264,24 +267,23 @@ export class ChessService {
           : chessState.isInsufficientMaterial()
             ? 'Draw by insufficient materials'
             : 'Draw by stalemate',
-        matchID: matchID,
+        matchID: gameData.matchID,
       });
 
-      this.activeMatches.delete(matchID);
+      this.activeMatches.delete(gameData.matchID);
 
       void this.databaseService.match.update({
-        where: { id: matchID },
+        where: { id: gameData.matchID },
         data: { status: 'FINISHED', endedAt: new Date() },
       });
     }
   }
 
-  handleCheckmateEndGame(chessState: Chess, gameData: GameData) {
+  handleCheckmateEndGame(gameData: GameData) {
+    const chessState = new Chess(gameData.gameState.fenHistory.at(-1));
+
     if (chessState.isCheckmate()) {
-      const [winner, loser] = this.getWinnerAndLoser(
-        chessState.turn(),
-        gameData,
-      );
+      const [winner, loser] = this.getWinnerAndLoser(gameData);
 
       this.activeMatches.delete(gameData.matchID);
 
@@ -303,7 +305,10 @@ export class ChessService {
     }
   }
 
-  getWinnerAndLoser(currentTurn: 'b' | 'w', gameData: GameData) {
+  getWinnerAndLoser(gameData: GameData) {
+    const chessState = new Chess(gameData.gameState.fenHistory.at(-1));
+    const currentTurn = chessState.turn();
+
     const [winner, loser] =
       currentTurn === 'b'
         ? [gameData.playerAsWhite, gameData.playerAsBlack]

@@ -103,6 +103,8 @@ export class ChessGateway {
     this.server.to(matchID).emit(OUTGOING_MESSAGES.NOTIFY_NEW_MATCH_STATE, {
       matchData: newMatchData,
     });
+
+    this.chessService.verifyMatchCurrentState(newMatchData);
   }
 
   // Events

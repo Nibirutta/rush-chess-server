@@ -1,5 +1,5 @@
 export interface GameState {
-  FEN: string;
+  fenHistory: string[];
 }
 
 export interface GameData {
