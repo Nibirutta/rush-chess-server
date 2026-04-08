@@ -18,7 +18,7 @@ import { LobbyService } from './lobby.service';
 import { SendMessageDTO, IsTypingDTO } from '../dto/message.dto';
 import { PlayerSocketData } from '../../common/interfaces/socket-data.interface';
 import { InviteResponseDTO, SendInviteDTO } from '../dto/invite.dto';
-import { IsPlayerReadyDTO } from '../dto/is-player-ready.dto';
+import { IsPlayerReadyDTO } from '../dto/lobby.dto';
 import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.filter';
 import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
 import {
@@ -121,15 +121,12 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.server
           .to(inviteResponseDTO.waitRoomID)
           .emit(OUTGOING_MESSAGES.NOTIFY_INVITE_ACCEPTED, {
-            message: 'Chess duel is ready to start',
             duelRoomID: inviteResponseDTO.waitRoomID,
           });
       } else {
         this.server
           .to(inviteResponseDTO.waitRoomID)
-          .emit(OUTGOING_MESSAGES.NOTIFY_INVITE_NOT_ACCEPTED, {
-            message: `Challenge refused`,
-          });
+          .emit(OUTGOING_MESSAGES.NOTIFY_INVITE_NOT_ACCEPTED);
       }
 
       this.lobbyService.resolveInvite(

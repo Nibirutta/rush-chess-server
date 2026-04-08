@@ -1,4 +1,5 @@
 import { PlayerStatus } from '../enums/player-status.enum';
+import { DrawType } from '../types/draw.types';
 import { DOMAIN_EVENTS_PATTERN } from './domain-events.pattern';
 
 export interface OnPlayerStatusChanged {
@@ -30,11 +31,7 @@ export interface OnThreefoldRepetition {
 
 export interface OnDraw {
   matchID: string;
-  drawType:
-    | 'Draw by threefold repetition'
-    | 'Draw by fifty moves'
-    | 'Draw by insufficient materials'
-    | 'Draw by stalemate';
+  drawType: DrawType;
 }
 
 export interface OnCheckmate {

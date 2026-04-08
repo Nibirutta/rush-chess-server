@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { Prisma } from 'src/generated/prisma/client';
-import { SendMessageDTO } from '../dto/message.dto';
-import { PaginationPropertiesDTO } from '../dto/pagination-properties.dto';
+import { SendMessageDTO, PaginationPropertiesDTO } from '../dto/message.dto';
 import { PlayerSocketData } from '../../common/interfaces/socket-data.interface';
 import { randomUUID } from 'crypto';
 import { InviteSession, InviteTicket } from '../interfaces/invite.interface';

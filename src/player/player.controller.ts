@@ -12,11 +12,10 @@ import {
   UsePipes,
   UseFilters,
 } from '@nestjs/common';
-import { CreatePlayerDTO } from './contracts/create-player.dto';
+import { CreatePlayerDTO, LoginPlayerDTO } from './contracts/player.dto';
 import { PlayerService } from './player.service';
 import { SessionManagementInterceptor } from './interceptors/session-management.interceptor';
 import { SessionGuard } from './guards/session.guard';
-import { LoginPlayerDTO } from './contracts/login-player.dto';
 import { Request } from 'express';
 import { LogoutInterceptor } from './interceptors/logout.interceptor';
 import { ValidationOptions } from 'src/common/options/validation.options';

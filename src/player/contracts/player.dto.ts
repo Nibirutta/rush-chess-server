@@ -5,6 +5,7 @@ import {
   Length,
   MaxLength,
 } from 'class-validator';
+import { OmitType, PartialType } from '@nestjs/mapped-types';
 
 export class CreatePlayerDTO {
   @IsNotEmpty()
@@ -23,3 +24,7 @@ export class CreatePlayerDTO {
   @MaxLength(20)
   password: string;
 }
+
+export class LoginPlayerDTO extends OmitType(CreatePlayerDTO, ['nickname']) {}
+
+export class UpdatePlayerDTO extends PartialType(CreatePlayerDTO) {}

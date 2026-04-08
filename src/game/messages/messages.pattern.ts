@@ -7,6 +7,7 @@ export const INCOMING_MESSAGES = {
   IS_READY: 'is_ready',
   JOIN_MATCH: 'join_match',
   MAKE_MOVE: 'make_move',
+  REQUEST_DRAW: 'request_draw',
 } as const;
 
 export const OUTGOING_MESSAGES = {

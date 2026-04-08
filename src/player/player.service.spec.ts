@@ -5,7 +5,7 @@ import { DatabaseService } from 'src/database/database.service';
 import { TokenService } from 'src/token/token.service';
 import * as bcrypt from 'bcrypt';
 import { omit } from 'lodash';
-import { CreatePlayerDTO } from './contracts/create-player.dto';
+import { CreatePlayerDTO } from './contracts/player.dto';
 import { LoginPlayerDTO } from './contracts/login-player.dto';
 import { UpdatePlayerDTO } from './contracts/update-player.dto';
 import { TokenType } from 'src/generated/prisma/enums';

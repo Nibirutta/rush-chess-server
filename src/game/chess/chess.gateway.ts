@@ -14,7 +14,6 @@ import {
 import { ChessService } from './chess.service';
 import { Server, Socket } from 'socket.io';
 import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.filter';
-import { SearchMatchDTO } from '../dto/search-match.dto';
 import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
 import {
@@ -24,7 +23,8 @@ import {
   OnPlayerInCheck,
   OnThreefoldRepetition,
 } from 'src/common/event/domain.events';
-import { MakeMoveDTO } from '../dto/match.dto';
+import { MakeMoveDTO, SearchMatchDTO, RequestDrawDTO } from '../dto/match.dto';
+import { DrawType } from 'src/common/types/draw.types';
 
 @WebSocketGateway({
   namespace: 'chess',
@@ -64,7 +64,7 @@ export class ChessGateway {
     await this.initiateMatchCountdown(matchID);
   }
 
-  async initiateMatchCountdown(matchID: string) {
+  private async initiateMatchCountdown(matchID: string) {
     const countdownInMilliseconds = 3000;
 
     const amountOfPlayers = await this.getAmountOfConnectedSockets(matchID);
@@ -83,7 +83,7 @@ export class ChessGateway {
     }
   }
 
-  async getAmountOfConnectedSockets(room: string) {
+  private async getAmountOfConnectedSockets(room: string) {
     const connectedSockets = await this.server.in(room).fetchSockets();
 
     return connectedSockets.length;
@@ -105,6 +105,18 @@ export class ChessGateway {
     });
 
     this.chessService.verifyMatchCurrentState(newMatchData);
+  }
+
+  @SubscribeMessage(INCOMING_MESSAGES.REQUEST_DRAW)
+  requestDraw(@MessageBody() requestDrawDTO: RequestDrawDTO) {
+    const matchID = requestDrawDTO.matchID;
+    const drawBy: DrawType = 'Draw by threefold repetition';
+
+    this.chessService.requestDraw(matchID);
+
+    this.server.to(matchID).emit(OUTGOING_MESSAGES.NOTIFY_DRAW, {
+      drawBy: drawBy,
+    });
   }
 
   // Events
@@ -133,8 +145,6 @@ export class ChessGateway {
     this.server.in(payload.matchID).emit(OUTGOING_MESSAGES.NOTIFY_DRAW, {
       drawBy: payload.drawType,
     });
-
-    this.server.socketsLeave(payload.matchID);
   }
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_CHECKMATE)

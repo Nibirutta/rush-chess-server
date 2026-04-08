@@ -7,7 +7,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { LobbyService } from './lobby.service';
-import { PaginationPropertiesDTO } from '../dto/pagination-properties.dto';
+import { PaginationPropertiesDTO } from '../dto/message.dto';
 import { ValidationOptions } from 'src/common/options/validation.options';
 import { HttpDomainExceptionFilter } from 'src/common/filters/http-domain-exception.filter';
 

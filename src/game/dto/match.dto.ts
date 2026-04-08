@@ -17,3 +17,15 @@ export class MakeMoveDTO {
   @IsString()
   promotion: string;
 }
+
+export class SearchMatchDTO {
+  @IsNotEmpty()
+  @IsString()
+  matchID: string;
+}
+
+export class RequestDrawDTO {
+  @IsNotEmpty()
+  @IsString()
+  matchID: string;
+}

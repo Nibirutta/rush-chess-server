@@ -129,7 +129,7 @@ export class ChessService {
     return this.activeMatches.get(matchID);
   }
 
-  async loadMatchIfActive(matchID: MatchID) {
+  async loadMatchIfActive(matchID: string) {
     const activeMatch = this.activeMatches.get(matchID);
 
     if (!activeMatch) {
@@ -143,7 +143,8 @@ export class ChessService {
       if (!retrivedMatch) return false;
       if (
         retrivedMatch.status === 'FINISHED' ||
-        retrivedMatch.status === 'ABANDONED'
+        retrivedMatch.status === 'ABANDONED' ||
+        retrivedMatch.status === 'DRAW'
       )
         return false;
 
@@ -209,7 +210,7 @@ export class ChessService {
     this.handleCheckmateEndGame(gameData);
   }
 
-  notifyIfThreefoldRepetitionOccuried(gameData: GameData) {
+  private notifyIfThreefoldRepetitionOccuried(gameData: GameData) {
     const wasThreefoldRepetition = this.wasThreefoldRepetitionOccuried(
       gameData.gameState.fenHistory,
     );
@@ -224,7 +225,7 @@ export class ChessService {
     }
   }
 
-  wasThreefoldRepetitionOccuried(fenHistory: string[]) {
+  private wasThreefoldRepetitionOccuried(fenHistory: string[]) {
     const repeatedPositionsMap = new Map<string, number>();
 
     for (const notation of fenHistory) {
@@ -240,7 +241,7 @@ export class ChessService {
     return false;
   }
 
-  notifyIfPlayerInCheck(gameData: GameData) {
+  private notifyIfPlayerInCheck(gameData: GameData) {
     const chessState = new Chess(gameData.gameState.fenHistory.at(-1));
 
     if (chessState.isCheck()) {
@@ -253,7 +254,7 @@ export class ChessService {
     }
   }
 
-  handleDrawConditions(gameData: GameData) {
+  private handleDrawConditions(gameData: GameData) {
     const chessState = new Chess(gameData.gameState.fenHistory.at(-1));
 
     if (
@@ -274,12 +275,12 @@ export class ChessService {
 
       void this.databaseService.match.update({
         where: { id: gameData.matchID },
-        data: { status: 'FINISHED', endedAt: new Date() },
+        data: { status: 'DRAW', endedAt: new Date() },
       });
     }
   }
 
-  handleCheckmateEndGame(gameData: GameData) {
+  private handleCheckmateEndGame(gameData: GameData) {
     const chessState = new Chess(gameData.gameState.fenHistory.at(-1));
 
     if (chessState.isCheckmate()) {
@@ -305,7 +306,7 @@ export class ChessService {
     }
   }
 
-  getWinnerAndLoser(gameData: GameData) {
+  private getWinnerAndLoser(gameData: GameData) {
     const chessState = new Chess(gameData.gameState.fenHistory.at(-1));
     const currentTurn = chessState.turn();
 
@@ -315,5 +316,19 @@ export class ChessService {
         : [gameData.playerAsBlack, gameData.playerAsWhite];
 
     return [winner, loser];
+  }
+
+  requestDraw(matchID: string) {
+    void this.databaseService.match.update({
+      where: {
+        id: matchID,
+      },
+      data: {
+        status: 'DRAW',
+        endedAt: new Date(),
+      },
+    });
+
+    this.activeMatches.delete(matchID);
   }
 }
