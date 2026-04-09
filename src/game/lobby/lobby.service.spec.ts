@@ -49,7 +49,7 @@ describe('LobbyService', () => {
 
   describe('player connection', () => {
     const playerSocketData: PlayerSocketData = {
-      playerID: 'playerID',
+      ID: 'playerID',
       nickname: 'player1',
     };
 
@@ -125,12 +125,12 @@ describe('LobbyService', () => {
 
     it('should invite the opponent successfully', () => {
       lobbyService.playerConnected(
-        { playerID: challengerID, nickname: 'PlayerOne' },
+        { ID: challengerID, nickname: 'PlayerOne' },
         'socket1',
       );
 
       lobbyService.playerConnected(
-        { playerID: opponentID, nickname: 'PlayerTwo' },
+        { ID: opponentID, nickname: 'PlayerTwo' },
         'socket2',
       );
 
@@ -153,12 +153,12 @@ describe('LobbyService', () => {
 
     it('should expire the invite after 15 seconds', () => {
       lobbyService.playerConnected(
-        { playerID: challengerID, nickname: 'PlayerOne' },
+        { ID: challengerID, nickname: 'PlayerOne' },
         'socket1',
       );
 
       lobbyService.playerConnected(
-        { playerID: opponentID, nickname: 'PlayerTwo' },
+        { ID: opponentID, nickname: 'PlayerTwo' },
         'socket2',
       );
 
@@ -191,12 +191,12 @@ describe('LobbyService', () => {
 
     it('should throw InvalidOpponentError if opponent is not ready or the ID is invalid', () => {
       lobbyService.playerConnected(
-        { playerID: challengerID, nickname: 'PlayerOne' },
+        { ID: challengerID, nickname: 'PlayerOne' },
         'socket1',
       );
 
       lobbyService.playerConnected(
-        { playerID: opponentID, nickname: 'PlayerTwo' },
+        { ID: opponentID, nickname: 'PlayerTwo' },
         'socket2',
       );
 
@@ -209,12 +209,12 @@ describe('LobbyService', () => {
 
     it('should accept the invitation and start the battle', () => {
       lobbyService.playerConnected(
-        { playerID: challengerID, nickname: 'PlayerOne' },
+        { ID: challengerID, nickname: 'PlayerOne' },
         'socket1',
       );
 
       lobbyService.playerConnected(
-        { playerID: opponentID, nickname: 'PlayerTwo' },
+        { ID: opponentID, nickname: 'PlayerTwo' },
         'socket2',
       );
 
@@ -240,12 +240,12 @@ describe('LobbyService', () => {
 
     it('should refuse the invitation and become ready to be invited again', () => {
       lobbyService.playerConnected(
-        { playerID: challengerID, nickname: 'PlayerOne' },
+        { ID: challengerID, nickname: 'PlayerOne' },
         'socket1',
       );
 
       lobbyService.playerConnected(
-        { playerID: opponentID, nickname: 'PlayerTwo' },
+        { ID: opponentID, nickname: 'PlayerTwo' },
         'socket2',
       );
 

@@ -1,4 +1,4 @@
 export interface PlayerSocketData {
-  playerID: string;
+  ID: string;
   nickname: string;
 }

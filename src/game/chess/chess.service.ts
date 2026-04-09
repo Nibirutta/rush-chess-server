@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { OnMatchAccepted } from 'src/common/event/domain.events';
 import { DatabaseService } from 'src/database/database.service';
-import { Prisma } from 'src/generated/prisma/client';
-import { GameData, GameState } from '../interfaces/match.interface';
+import { GameData } from '../interfaces/match.interface';
 import { MatchID } from '../types/game.types';
 import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
-import { Chess } from 'chess.js';
+import { Chess, DEFAULT_POSITION } from 'chess.js';
 import {
   InvalidMovementException,
   MatchNotFoundException,
@@ -22,18 +21,48 @@ export class ChessService {
     private readonly domainEventEmitter: DomainEventEmitterService,
   ) {}
 
-  async createMatch(payload: OnMatchAccepted) {
+  async prepareMatch(payload: OnMatchAccepted) {
     const matchExpirationTimeInMS = 30000;
     const { playerAsWhite, playerAsBlack } = this.chooseSides(
       payload.challengerID,
       payload.opponentID,
     );
 
-    await this.initializeMatchData(
-      payload.matchID,
-      playerAsWhite,
-      playerAsBlack,
-    );
+    this.activeMatches.set(payload.matchID, {
+      matchID: payload.matchID,
+      gameState: {
+        fenHistory: [DEFAULT_POSITION],
+      },
+      playerAsWhite: {
+        ID: playerAsWhite,
+        connected: false,
+      },
+      playerAsBlack: {
+        ID: playerAsBlack,
+        connected: false,
+      },
+    });
+
+    await this.databaseService.match.create({
+      data: {
+        id: payload.matchID,
+        gameState: {
+          create: {
+            fenHistory: [DEFAULT_POSITION],
+          },
+        },
+        playerWhite: {
+          connect: {
+            id: playerAsWhite,
+          },
+        },
+        playerBlack: {
+          connect: {
+            id: playerAsBlack,
+          },
+        },
+      },
+    });
 
     const timeoutToExpireMatch = setTimeout(() => {
       void (async () => {
@@ -70,99 +99,70 @@ export class ChessService {
     return { playerAsWhite, playerAsBlack };
   }
 
-  private async initializeMatchData(
-    matchID: string,
-    playerAsWhite: string,
-    playerAsBlack: string,
-  ) {
-    const matchData: Prisma.MatchCreateInput = {
-      gameState: {
-        create: {},
-      },
-      id: matchID,
-      playerBlack: {
-        connect: {
-          id: playerAsBlack,
-        },
-      },
-      playerWhite: {
-        connect: {
-          id: playerAsWhite,
-        },
-      },
-    };
+  async connectToMatch(matchID: string, connectedPlayerID: string) {
+    const ongoingMatch = await this.loadOngoingMatch(matchID);
 
-    const createdMatch = await this.databaseService.match.create({
-      data: matchData,
-      include: {
-        gameState: true,
-      },
-    });
+    if (!ongoingMatch) return;
+    if (connectedPlayerID === ongoingMatch.playerAsWhite.ID)
+      ongoingMatch.playerAsWhite.connected = true;
+    if (connectedPlayerID === ongoingMatch.playerAsBlack.ID)
+      ongoingMatch.playerAsBlack.connected = true;
 
-    const gameState: GameState = {
-      fenHistory: createdMatch.gameState!.FEN,
-    };
+    this.initiateMatchIfBothPlayersAreConnected(ongoingMatch);
 
-    this.activeMatches.set(matchData.id, {
-      matchID: matchID,
-      gameState: gameState,
-      playerAsWhite: playerAsWhite,
-      playerAsBlack: playerAsBlack,
-    });
-
-    return matchData;
+    return ongoingMatch;
   }
 
-  startMatch(matchID: string) {
-    void this.databaseService.match.update({
-      data: { status: 'IN_PROGRESS', startedAt: new Date() },
-      where: { id: matchID },
-    });
+  private async loadOngoingMatch(matchID: string) {
+    const ongoingMatch = this.activeMatches.get(matchID);
 
-    const timeoutToExpireMatch = this.matchTimeout.get(matchID);
-
-    if (timeoutToExpireMatch) {
-      clearTimeout(timeoutToExpireMatch);
-      this.matchTimeout.delete(matchID);
-    }
-
-    return this.activeMatches.get(matchID);
-  }
-
-  async loadMatchIfActive(matchID: string) {
-    const activeMatch = this.activeMatches.get(matchID);
-
-    if (!activeMatch) {
-      const retrivedMatch = await this.databaseService.match.findUnique({
+    if (!ongoingMatch) {
+      const retrievedMatch = await this.databaseService.match.findUnique({
         where: { id: matchID },
         include: {
           gameState: true,
         },
       });
 
-      if (!retrivedMatch) return false;
-      if (
-        retrivedMatch.status === 'FINISHED' ||
-        retrivedMatch.status === 'ABANDONED' ||
-        retrivedMatch.status === 'DRAW'
-      )
-        return false;
+      if (!retrievedMatch || !retrievedMatch.gameState) return;
+      if (retrievedMatch.status != 'STARTED') return;
 
-      const retrievedActiveMatch: GameData = {
-        matchID: retrivedMatch.id,
+      const retrievedOngoingMatch: GameData = {
+        matchID: retrievedMatch.id,
         gameState: {
-          fenHistory: retrivedMatch.gameState!.FEN,
+          fenHistory: retrievedMatch.gameState.fenHistory,
         },
-        playerAsWhite: retrivedMatch.playerWhiteID,
-        playerAsBlack: retrivedMatch.playerBlackID,
+        playerAsWhite: {
+          ID: retrievedMatch.playerWhiteID,
+          connected: false,
+        },
+        playerAsBlack: {
+          ID: retrievedMatch.playerBlackID,
+          connected: false,
+        },
       };
 
-      this.activeMatches.set(retrivedMatch.id, retrievedActiveMatch);
+      this.activeMatches.set(retrievedMatch.id, retrievedOngoingMatch);
 
-      return true;
+      return retrievedOngoingMatch;
     }
 
-    return true;
+    return ongoingMatch;
+  }
+
+  initiateMatchIfBothPlayersAreConnected(gameData: GameData) {
+    if (gameData.playerAsWhite.connected && gameData.playerAsBlack.connected) {
+      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_MATCH_START, {
+        matchID: gameData.matchID,
+      });
+
+      const timeoutToExpireMatch = this.matchTimeout.get(gameData.matchID);
+
+      if (timeoutToExpireMatch) {
+        clearTimeout(timeoutToExpireMatch);
+        this.matchTimeout.delete(gameData.matchID);
+      }
+    }
   }
 
   async makeMove(
@@ -188,7 +188,7 @@ export class ChessService {
       await this.databaseService.gameState.update({
         where: { matchID: matchID },
         data: {
-          FEN: {
+          fenHistory: {
             push: chessState.fen(),
           },
         },
@@ -248,8 +248,8 @@ export class ChessService {
       this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_PLAYER_IN_CHECK, {
         playerID:
           chessState.turn() === 'w'
-            ? gameData.playerAsWhite
-            : gameData.playerAsBlack,
+            ? gameData.playerAsWhite.ID
+            : gameData.playerAsBlack.ID,
       });
     }
   }
@@ -312,8 +312,8 @@ export class ChessService {
 
     const [winner, loser] =
       currentTurn === 'b'
-        ? [gameData.playerAsWhite, gameData.playerAsBlack]
-        : [gameData.playerAsBlack, gameData.playerAsWhite];
+        ? [gameData.playerAsWhite.ID, gameData.playerAsBlack.ID]
+        : [gameData.playerAsBlack.ID, gameData.playerAsWhite.ID];
 
     return [winner, loser];
   }

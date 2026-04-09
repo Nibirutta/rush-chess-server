@@ -1,8 +1,8 @@
 -- CreateEnum
-CREATE TYPE "MatchStatus" AS ENUM ('WAITING', 'IN_PROGRESS', 'FINISHED', 'ABANDONED');
+CREATE TYPE "MatchStatus" AS ENUM ('STARTED', 'FINISHED', 'ABANDONED', 'DRAW');
 
 -- CreateEnum
-CREATE TYPE "Pieces" AS ENUM ('KING', 'QUEEN', 'ROOK', 'BISHOP', 'KNIGHT', 'PAWN');
+CREATE TYPE "TokenType" AS ENUM ('ACCESS', 'SESSION', 'RESET');
 
 -- CreateTable
 CREATE TABLE "Player" (
@@ -20,6 +20,7 @@ CREATE TABLE "Player" (
 CREATE TABLE "Token" (
     "id" SERIAL NOT NULL,
     "token" TEXT NOT NULL,
+    "type" "TokenType" NOT NULL,
     "playerID" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expiresAt" TIMESTAMP(3) NOT NULL,
@@ -40,10 +41,9 @@ CREATE TABLE "Message" (
 -- CreateTable
 CREATE TABLE "Match" (
     "id" TEXT NOT NULL,
-    "status" "MatchStatus" NOT NULL DEFAULT 'WAITING',
-    "gameState" JSON NOT NULL,
-    "playerWhiteID" TEXT,
-    "playerBlackID" TEXT,
+    "status" "MatchStatus" NOT NULL DEFAULT 'STARTED',
+    "playerWhiteID" TEXT NOT NULL,
+    "playerBlackID" TEXT NOT NULL,
     "winnerID" TEXT,
     "loserID" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -54,20 +54,16 @@ CREATE TABLE "Match" (
 );
 
 -- CreateTable
-CREATE TABLE "Movement" (
+CREATE TABLE "GameState" (
     "id" SERIAL NOT NULL,
-    "from" TEXT NOT NULL,
-    "to" TEXT NOT NULL,
-    "piece" "Pieces" NOT NULL,
-    "promotion" "Pieces",
-    "turnNumber" INTEGER NOT NULL,
-    "effects" JSON,
     "matchID" TEXT NOT NULL,
-    "playerID" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "FenHistory" TEXT[],
 
-    CONSTRAINT "Movement_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "GameState_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Player_nickname_key" ON "Player"("nickname");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Player_username_key" ON "Player"("username");
@@ -79,10 +75,13 @@ CREATE UNIQUE INDEX "Token_token_key" ON "Token"("token");
 CREATE INDEX "Token_playerID_idx" ON "Token"("playerID");
 
 -- CreateIndex
+CREATE INDEX "Message_createdAt_idx" ON "Message"("createdAt");
+
+-- CreateIndex
 CREATE INDEX "Match_status_idx" ON "Match"("status");
 
 -- CreateIndex
-CREATE INDEX "Movement_matchID_turnNumber_idx" ON "Movement"("matchID", "turnNumber");
+CREATE UNIQUE INDEX "GameState_matchID_key" ON "GameState"("matchID");
 
 -- AddForeignKey
 ALTER TABLE "Token" ADD CONSTRAINT "Token_playerID_fkey" FOREIGN KEY ("playerID") REFERENCES "Player"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -91,10 +90,10 @@ ALTER TABLE "Token" ADD CONSTRAINT "Token_playerID_fkey" FOREIGN KEY ("playerID"
 ALTER TABLE "Message" ADD CONSTRAINT "Message_playerID_fkey" FOREIGN KEY ("playerID") REFERENCES "Player"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Match" ADD CONSTRAINT "Match_playerWhiteID_fkey" FOREIGN KEY ("playerWhiteID") REFERENCES "Player"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Match" ADD CONSTRAINT "Match_playerWhiteID_fkey" FOREIGN KEY ("playerWhiteID") REFERENCES "Player"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Match" ADD CONSTRAINT "Match_playerBlackID_fkey" FOREIGN KEY ("playerBlackID") REFERENCES "Player"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Match" ADD CONSTRAINT "Match_playerBlackID_fkey" FOREIGN KEY ("playerBlackID") REFERENCES "Player"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Match" ADD CONSTRAINT "Match_winnerID_fkey" FOREIGN KEY ("winnerID") REFERENCES "Player"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -103,7 +102,4 @@ ALTER TABLE "Match" ADD CONSTRAINT "Match_winnerID_fkey" FOREIGN KEY ("winnerID"
 ALTER TABLE "Match" ADD CONSTRAINT "Match_loserID_fkey" FOREIGN KEY ("loserID") REFERENCES "Player"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Movement" ADD CONSTRAINT "Movement_matchID_fkey" FOREIGN KEY ("matchID") REFERENCES "Match"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Movement" ADD CONSTRAINT "Movement_playerID_fkey" FOREIGN KEY ("playerID") REFERENCES "Player"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "GameState" ADD CONSTRAINT "GameState_matchID_fkey" FOREIGN KEY ("matchID") REFERENCES "Match"("id") ON DELETE CASCADE ON UPDATE CASCADE;

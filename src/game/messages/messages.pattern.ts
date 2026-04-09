@@ -21,6 +21,7 @@ export const OUTGOING_MESSAGES = {
   NOTIFY_PLAYER_UPDATE: 'notify_player_update',
   NOTIFY_MATCH_EXPIRED: 'notify_match_expired',
   NOTIFY_INVALID_MATCH: 'notify_invalid_match',
+  NOTIFY_LOAD_MATCH: 'notify_load_match',
   NOTIFY_MATCH_COUNTDOWN: 'notify_match_countdown',
   NOTIFY_START_MATCH: 'notify_start_match',
   NOTIFY_NEW_MATCH_STATE: 'notify_new_match_state',

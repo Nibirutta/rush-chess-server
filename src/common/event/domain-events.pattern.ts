@@ -7,4 +7,5 @@ export const DOMAIN_EVENTS_PATTERN = {
   ON_THREEFOLD_REPETITION: 'on_threefold_repetition',
   ON_DRAW: 'on_draw',
   ON_CHECKMATE: 'on_checkmate',
+  ON_MATCH_START: 'on_match_start',
 } as const;

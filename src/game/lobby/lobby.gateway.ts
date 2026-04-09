@@ -68,7 +68,7 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const playerData = client.data as PlayerSocketData;
     const createdMessage = await this.lobbyService.createMessage(
       sendMessageDTO,
-      playerData.playerID,
+      playerData.ID,
       playerData.nickname,
     );
 
@@ -100,7 +100,7 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const challengerSocketID = client.id;
 
     const inviteTicket = this.lobbyService.invite(
-      challengerData.playerID,
+      challengerData.ID,
       sendInviteDTO.opponentID,
     );
 

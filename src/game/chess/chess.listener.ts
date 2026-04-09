@@ -10,6 +10,6 @@ export class ChessListener {
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_ACCEPTED)
   async onMatchAccepted(payload: OnMatchAccepted) {
-    await this.chessService.createMatch(payload);
+    await this.chessService.prepareMatch(payload);
   }
 }

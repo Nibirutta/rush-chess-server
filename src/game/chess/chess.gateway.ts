@@ -3,7 +3,8 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
-  ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { ValidationPipe, UsePipes, UseFilters } from '@nestjs/common';
 import { ValidationOptions } from 'src/common/options/validation.options';
@@ -20,38 +21,35 @@ import {
   OnCheckmate,
   OnDraw,
   OnMatchExpired,
+  OnMatchStart,
   OnPlayerInCheck,
   OnThreefoldRepetition,
 } from 'src/common/event/domain.events';
-import { MakeMoveDTO, SearchMatchDTO, RequestDrawDTO } from '../dto/match.dto';
+import { MakeMoveDTO, RequestDrawDTO } from '../dto/match.dto';
 import { DrawType } from 'src/common/types/draw.types';
+import { PlayerSocketData } from 'src/common/interfaces/socket-data.interface';
 
 @WebSocketGateway({
   namespace: 'chess',
 })
 @UsePipes(new ValidationPipe(ValidationOptions))
 @UseFilters(new WsDomainExceptionFilter())
-export class ChessGateway {
+export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   constructor(private readonly chessService: ChessService) {}
 
-  @SubscribeMessage(INCOMING_MESSAGES.TESTING)
-  testing(@MessageBody() data: string) {
-    return data;
-  }
+  async handleConnection(client: Socket) {
+    const matchID = client.handshake.query.matchID;
+    const playerData = client.data as PlayerSocketData;
 
-  @SubscribeMessage(INCOMING_MESSAGES.JOIN_MATCH)
-  async joinMatch(
-    @MessageBody() searchMatchDTO: SearchMatchDTO,
-    @ConnectedSocket() client: Socket,
-  ) {
-    const matchID = searchMatchDTO.matchID;
+    const ongoingMatch =
+      typeof matchID === 'string'
+        ? await this.chessService.connectToMatch(matchID, playerData.ID)
+        : undefined;
 
-    const isMatchActive = await this.chessService.loadMatchIfActive(matchID);
-
-    if (!isMatchActive) {
+    if (!ongoingMatch) {
       client.emit(OUTGOING_MESSAGES.NOTIFY_INVALID_MATCH);
 
       client.disconnect(true);
@@ -59,34 +57,20 @@ export class ChessGateway {
       return;
     }
 
-    await client.join(matchID);
+    await client.join(ongoingMatch.matchID);
 
-    await this.initiateMatchCountdown(matchID);
+    client.emit(OUTGOING_MESSAGES.NOTIFY_LOAD_MATCH, {
+      match: ongoingMatch,
+    });
   }
 
-  private async initiateMatchCountdown(matchID: string) {
-    const countdownInMilliseconds = 3000;
-
-    const amountOfPlayers = await this.getAmountOfConnectedSockets(matchID);
-
-    if (amountOfPlayers == 2) {
-      const startedMatch = this.chessService.startMatch(matchID);
-
-      this.server.in(matchID).emit(OUTGOING_MESSAGES.NOTIFY_MATCH_COUNTDOWN, {
-        countdownInMS: countdownInMilliseconds,
-        matchData: startedMatch,
-      });
-
-      setTimeout(() => {
-        this.server.in(matchID).emit(OUTGOING_MESSAGES.NOTIFY_START_MATCH);
-      }, countdownInMilliseconds);
-    }
+  handleDisconnect() {
+    // TODO
   }
 
-  private async getAmountOfConnectedSockets(room: string) {
-    const connectedSockets = await this.server.in(room).fetchSockets();
-
-    return connectedSockets.length;
+  @SubscribeMessage(INCOMING_MESSAGES.TESTING)
+  testing(@MessageBody() data: string) {
+    return data;
   }
 
   @SubscribeMessage(INCOMING_MESSAGES.MAKE_MOVE)
@@ -122,7 +106,7 @@ export class ChessGateway {
   // Events
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED)
-  deleteExpiredRoom(payload: OnMatchExpired) {
+  deleteExpiredMatch(payload: OnMatchExpired) {
     this.server.in(payload.matchID).disconnectSockets();
   }
 
@@ -153,5 +137,22 @@ export class ChessGateway {
       winner: payload.winnerID,
       loser: payload.loserID,
     });
+  }
+
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_START)
+  notifyMatchStart(payload: OnMatchStart) {
+    const countdownInMilliseconds = 3000;
+
+    this.server
+      .in(payload.matchID)
+      .emit(OUTGOING_MESSAGES.NOTIFY_MATCH_COUNTDOWN, {
+        countdownInMS: countdownInMilliseconds,
+      });
+
+    setTimeout(() => {
+      this.server
+        .in(payload.matchID)
+        .emit(OUTGOING_MESSAGES.NOTIFY_START_MATCH);
+    }, countdownInMilliseconds);
   }
 }

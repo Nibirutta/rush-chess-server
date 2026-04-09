@@ -49,7 +49,7 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
         throw new InconsistentTokenInfoError('Decoded token info conflict');
 
       const playerData: PlayerSocketData = {
-        playerID: decodedAccessToken.id,
+        ID: decodedAccessToken.id,
         nickname: decodedAccessToken.nickname,
       };
 

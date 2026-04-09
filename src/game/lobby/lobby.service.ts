@@ -27,8 +27,8 @@ export class LobbyService {
   ) {}
 
   playerConnected(playerSocketData: PlayerSocketData, socketID: string) {
-    this.onlinePlayers.set(playerSocketData.playerID, {
-      playerID: playerSocketData.playerID,
+    this.onlinePlayers.set(playerSocketData.ID, {
+      ID: playerSocketData.ID,
       nickname: playerSocketData.nickname,
       socketID: socketID,
       status: PlayerStatus.Ready,
@@ -36,7 +36,7 @@ export class LobbyService {
   }
 
   playerDisconnected(playerSocketData: PlayerSocketData) {
-    this.onlinePlayers.delete(playerSocketData.playerID);
+    this.onlinePlayers.delete(playerSocketData.ID);
   }
 
   getOnlinePlayers(): Array<PlayerLobbyData> {

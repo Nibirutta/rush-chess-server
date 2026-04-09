@@ -14,8 +14,7 @@ datasource db {
 }
 
 enum MatchStatus {
-  WAITING
-  IN_PROGRESS
+  STARTED
   FINISHED
   ABANDONED
   DRAW
@@ -73,7 +72,7 @@ model Message {
 
 model Match {
   id String @id
-  status MatchStatus @default(WAITING)
+  status MatchStatus @default(STARTED)
 
   gameState GameState?
 
@@ -100,5 +99,5 @@ model GameState {
   match Match @relation(fields: [matchID], references: [id], onDelete: Cascade)
   matchID String @unique
 
-  FEN String[] @default(["rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"])
+  fenHistory String[]
 }
