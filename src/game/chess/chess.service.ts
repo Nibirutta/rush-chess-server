@@ -69,6 +69,7 @@ export class ChessService {
         try {
           this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED, {
             matchID: payload.matchID,
+            playersInMatch: [playerAsWhite, playerAsBlack],
           });
 
           this.activeMatches.delete(payload.matchID);

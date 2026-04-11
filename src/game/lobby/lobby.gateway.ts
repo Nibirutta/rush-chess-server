@@ -23,9 +23,11 @@ import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.
 import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
 import {
   OnInviteExpired,
+  OnMatchExpired,
   OnPlayerStatusChanged,
 } from 'src/common/event/domain.events';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
+import { PlayerStatus } from 'src/common/enums/player-status.enum';
 
 @WebSocketGateway({
   namespace: 'lobby',
@@ -157,6 +159,13 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
     this.server.socketsLeave(payload.waitRoomID);
+  }
+
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED)
+  revertPlayersToAwaitStatus(payload: OnMatchExpired) {
+    payload.playersInMatch.forEach((player) => {
+      this.lobbyService.changePlayerStatus(player, PlayerStatus.Awaiting);
+    });
   }
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED)

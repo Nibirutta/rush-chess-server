@@ -19,6 +19,7 @@ export interface OnMatchAccepted {
 
 export interface OnMatchExpired {
   matchID: string;
+  playersInMatch: string[];
 }
 
 export interface OnPlayerInCheck {
