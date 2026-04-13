@@ -31,6 +31,7 @@ export class ChessService {
     this.activeMatches.set(payload.matchID, {
       matchID: payload.matchID,
       gameState: {
+        matchState: 'waiting',
         fenHistory: [DEFAULT_POSITION],
       },
       playerAsWhite: {
@@ -131,6 +132,7 @@ export class ChessService {
       const retrievedOngoingMatch: GameData = {
         matchID: retrievedMatch.id,
         gameState: {
+          matchState: 'paused',
           fenHistory: retrievedMatch.gameState.fenHistory,
         },
         playerAsWhite: {
@@ -151,11 +153,20 @@ export class ChessService {
     return ongoingMatch;
   }
 
-  initiateMatchIfBothPlayersAreConnected(gameData: GameData) {
-    if (gameData.playerAsWhite.connected && gameData.playerAsBlack.connected) {
-      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_MATCH_START, {
-        matchID: gameData.matchID,
-      });
+  private initiateMatchIfBothPlayersAreConnected(gameData: GameData) {
+    if (
+      gameData.playerAsWhite.connected &&
+      gameData.playerAsBlack.connected &&
+      gameData.gameState.matchState != 'started'
+    ) {
+      this.domainEventEmitter.emit(
+        gameData.gameState.matchState === 'waiting'
+          ? DOMAIN_EVENTS_PATTERN.ON_MATCH_START
+          : DOMAIN_EVENTS_PATTERN.ON_MATCH_RESTART,
+        {
+          matchID: gameData.matchID,
+        },
+      );
 
       const timeoutToExpireMatch = this.matchTimeout.get(gameData.matchID);
 

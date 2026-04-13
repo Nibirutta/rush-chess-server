@@ -21,7 +21,7 @@ import {
   OnCheckmate,
   OnDraw,
   OnMatchExpired,
-  OnMatchStart,
+  OnMatchStartOrRestart,
   OnPlayerInCheck,
   OnThreefoldRepetition,
 } from 'src/common/event/domain.events';
@@ -140,7 +140,7 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_START)
-  notifyMatchStart(payload: OnMatchStart) {
+  notifyStartMatch(payload: OnMatchStartOrRestart) {
     const countdownInMilliseconds = 3000;
 
     this.server
@@ -154,5 +154,12 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
         .in(payload.matchID)
         .emit(OUTGOING_MESSAGES.NOTIFY_START_MATCH);
     }, countdownInMilliseconds);
+  }
+
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_RESTART)
+  notifyMatchRestart(payload: OnMatchStartOrRestart) {
+    this.server
+      .in(payload.matchID)
+      .emit(OUTGOING_MESSAGES.NOTIFY_RESTART_MATCH);
   }
 }

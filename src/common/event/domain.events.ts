@@ -41,7 +41,7 @@ export interface OnCheckmate {
   loserID: string;
 }
 
-export interface OnMatchStart {
+export interface OnMatchStartOrRestart {
   matchID: string;
 }
 
@@ -54,5 +54,6 @@ export type DomainEventsMap = {
   [DOMAIN_EVENTS_PATTERN.ON_THREEFOLD_REPETITION]: OnThreefoldRepetition;
   [DOMAIN_EVENTS_PATTERN.ON_DRAW]: OnDraw;
   [DOMAIN_EVENTS_PATTERN.ON_CHECKMATE]: OnCheckmate;
-  [DOMAIN_EVENTS_PATTERN.ON_MATCH_START]: OnMatchStart;
+  [DOMAIN_EVENTS_PATTERN.ON_MATCH_START]: OnMatchStartOrRestart;
+  [DOMAIN_EVENTS_PATTERN.ON_MATCH_RESTART]: OnMatchStartOrRestart;
 };

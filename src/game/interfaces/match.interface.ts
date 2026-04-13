@@ -1,5 +1,6 @@
 export interface GameState {
   fenHistory: string[];
+  matchState: 'started' | 'waiting' | 'paused';
 }
 
 export interface PlayerInMatch {

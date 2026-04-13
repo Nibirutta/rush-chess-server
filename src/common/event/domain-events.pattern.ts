@@ -8,4 +8,5 @@ export const DOMAIN_EVENTS_PATTERN = {
   ON_DRAW: 'on_draw',
   ON_CHECKMATE: 'on_checkmate',
   ON_MATCH_START: 'on_match_start',
+  ON_MATCH_RESTART: 'on_match_restart',
 } as const;
