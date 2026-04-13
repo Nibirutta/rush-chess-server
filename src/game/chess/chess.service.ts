@@ -115,6 +115,14 @@ export class ChessService {
     return ongoingMatch;
   }
 
+  async disconnectFromMatch(matchID: string, disconnectedPlayerID: string) {
+    const ongoingMatch = await this.loadOngoingMatch(matchID);
+
+    if (!ongoingMatch) return;
+
+    this.notifyIfOpponentDisconnected(ongoingMatch, disconnectedPlayerID);
+  }
+
   private async loadOngoingMatch(matchID: string) {
     const ongoingMatch = this.activeMatches.get(matchID);
 
@@ -168,12 +176,70 @@ export class ChessService {
         },
       );
 
+      gameData.gameState.matchState = 'started';
       const timeoutToExpireMatch = this.matchTimeout.get(gameData.matchID);
 
       if (timeoutToExpireMatch) {
         clearTimeout(timeoutToExpireMatch);
         this.matchTimeout.delete(gameData.matchID);
       }
+    }
+  }
+
+  private notifyIfOpponentDisconnected(
+    gameData: GameData,
+    disconnectedPlayerID: string,
+  ) {
+    if (
+      disconnectedPlayerID === gameData.playerAsWhite.ID ||
+      disconnectedPlayerID === gameData.playerAsBlack.ID
+    ) {
+      const matchReconnectTimeoutMS = 30000;
+
+      this.domainEventEmitter.emit(
+        DOMAIN_EVENTS_PATTERN.ON_OPPONENT_DISCONNECTION,
+        {
+          disconnectedPlayer: disconnectedPlayerID,
+          matchID: gameData.matchID,
+        },
+      );
+
+      gameData.gameState.matchState = 'paused';
+
+      const prevTimeoutToExpireMatch = this.matchTimeout.get(gameData.matchID);
+
+      if (prevTimeoutToExpireMatch) clearTimeout(prevTimeoutToExpireMatch);
+
+      const timeoutToExpireMatch = setTimeout(() => {
+        void (async () => {
+          try {
+            await this.databaseService.match.update({
+              where: { id: gameData.matchID },
+              data: {
+                status: 'ABANDONED',
+                endedAt: new Date(),
+              },
+            });
+
+            this.activeMatches.delete(gameData.matchID);
+
+            this.domainEventEmitter.emit(
+              DOMAIN_EVENTS_PATTERN.ON_MATCH_ABANDONED,
+              {
+                matchID: gameData.matchID,
+                playersInMatch: [
+                  gameData.playerAsWhite.ID,
+                  gameData.playerAsBlack.ID,
+                ],
+              },
+            );
+          } catch (error) {
+            console.log(error);
+          }
+        })();
+      }, matchReconnectTimeoutMS);
+
+      this.matchTimeout.set(gameData.matchID, timeoutToExpireMatch);
     }
   }
 

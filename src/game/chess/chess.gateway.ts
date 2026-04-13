@@ -20,8 +20,9 @@ import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
 import {
   OnCheckmate,
   OnDraw,
-  OnMatchExpired,
+  OnMatchTerminated,
   OnMatchStartOrRestart,
+  OnOpponentDisconnection,
   OnPlayerInCheck,
   OnThreefoldRepetition,
 } from 'src/common/event/domain.events';
@@ -64,8 +65,13 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
-  handleDisconnect() {
-    // TODO
+  async handleDisconnect(client: Socket) {
+    const matchID = client.handshake.query.matchID;
+    const playerData = client.data as PlayerSocketData;
+
+    if (!(typeof matchID === 'string')) return;
+
+    await this.chessService.disconnectFromMatch(matchID, playerData.ID);
   }
 
   @SubscribeMessage(INCOMING_MESSAGES.TESTING)
@@ -106,7 +112,7 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Events
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED)
-  deleteExpiredMatch(payload: OnMatchExpired) {
+  deleteExpiredMatch(payload: OnMatchTerminated) {
     this.server.in(payload.matchID).disconnectSockets();
   }
 
@@ -161,5 +167,21 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server
       .in(payload.matchID)
       .emit(OUTGOING_MESSAGES.NOTIFY_RESTART_MATCH);
+  }
+
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_OPPONENT_DISCONNECTION)
+  notifyOpponentDisconnection(payload: OnOpponentDisconnection) {
+    this.server
+      .in(payload.matchID)
+      .emit(OUTGOING_MESSAGES.NOTIFY_OPPONENT_DISCONNECTION, {
+        playerDisconnected: payload.disconnectedPlayer,
+      });
+  }
+
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_ABANDONED)
+  notifyAbandonedMatch(payload: OnMatchTerminated) {
+    this.server
+      .in(payload.matchID)
+      .emit(OUTGOING_MESSAGES.NOTIFY_MATCH_ABANDONED);
   }
 }

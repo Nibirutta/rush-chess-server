@@ -23,7 +23,7 @@ import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.
 import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
 import {
   OnInviteExpired,
-  OnMatchExpired,
+  OnMatchTerminated,
   OnPlayerStatusChanged,
 } from 'src/common/event/domain.events';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
@@ -162,7 +162,8 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED)
-  revertPlayersToAwaitStatus(payload: OnMatchExpired) {
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_ABANDONED)
+  revertPlayersToAwaitStatus(payload: OnMatchTerminated) {
     payload.playersInMatch.forEach((player) => {
       this.lobbyService.changePlayerStatus(player, PlayerStatus.Awaiting);
     });
