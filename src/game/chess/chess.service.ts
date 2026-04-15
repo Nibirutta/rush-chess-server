@@ -105,10 +105,33 @@ export class ChessService {
     const ongoingMatch = await this.loadOngoingMatch(matchID);
 
     if (!ongoingMatch) return;
-    if (connectedPlayerID === ongoingMatch.playerAsWhite.ID)
-      ongoingMatch.playerAsWhite.connected = true;
-    if (connectedPlayerID === ongoingMatch.playerAsBlack.ID)
-      ongoingMatch.playerAsBlack.connected = true;
+
+    const playerAsWhiteID = ongoingMatch.playerAsWhite.ID;
+    const playerAsBlackID = ongoingMatch.playerAsBlack.ID;
+
+    switch (connectedPlayerID) {
+      case playerAsWhiteID:
+        ongoingMatch.playerAsWhite.connected = true;
+
+        break;
+      case playerAsBlackID:
+        ongoingMatch.playerAsBlack.connected = true;
+
+        break;
+      default:
+        this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_LEAVE_AVAILABLE, {
+          playerID: connectedPlayerID,
+        });
+
+        break;
+    }
+
+    this.domainEventEmitter.emit(
+      DOMAIN_EVENTS_PATTERN.ON_PLAYER_ENTERING_MATCH,
+      {
+        playerID: connectedPlayerID,
+      },
+    );
 
     this.initiateMatchIfBothPlayersAreConnected(ongoingMatch);
 
@@ -116,11 +139,21 @@ export class ChessService {
   }
 
   async disconnectFromMatch(matchID: string, disconnectedPlayerID: string) {
+    this.domainEventEmitter.emit(
+      DOMAIN_EVENTS_PATTERN.ON_PLAYER_LEAVING_MATCH,
+      {
+        playerID: disconnectedPlayerID,
+      },
+    );
+
     const ongoingMatch = await this.loadOngoingMatch(matchID);
 
     if (!ongoingMatch) return;
 
-    this.notifyIfOpponentDisconnected(ongoingMatch, disconnectedPlayerID);
+    this.notifyIfOpponentDisconnectedDuringMatch(
+      ongoingMatch,
+      disconnectedPlayerID,
+    );
   }
 
   private async loadOngoingMatch(matchID: string) {
@@ -186,7 +219,7 @@ export class ChessService {
     }
   }
 
-  private notifyIfOpponentDisconnected(
+  private notifyIfOpponentDisconnectedDuringMatch(
     gameData: GameData,
     disconnectedPlayerID: string,
   ) {
@@ -232,6 +265,11 @@ export class ChessService {
                   gameData.playerAsBlack.ID,
                 ],
               },
+            );
+
+            this.notifyPlayersLeaveAvailability(
+              gameData.playerAsWhite.ID,
+              gameData.playerAsBlack.ID,
             );
           } catch (error) {
             console.log(error);
@@ -355,6 +393,11 @@ export class ChessService {
         where: { id: gameData.matchID },
         data: { status: 'DRAW', endedAt: new Date() },
       });
+
+      this.notifyPlayersLeaveAvailability(
+        gameData.playerAsWhite.ID,
+        gameData.playerAsBlack.ID,
+      );
     }
   }
 
@@ -381,6 +424,11 @@ export class ChessService {
         winnerID: winner,
         loserID: loser,
       });
+
+      this.notifyPlayersLeaveAvailability(
+        gameData.playerAsWhite.ID,
+        gameData.playerAsBlack.ID,
+      );
     }
   }
 
@@ -396,8 +444,8 @@ export class ChessService {
     return [winner, loser];
   }
 
-  requestDraw(matchID: string) {
-    void this.databaseService.match.update({
+  async requestDraw(matchID: string) {
+    const updatedMatch = await this.databaseService.match.update({
       where: {
         id: matchID,
       },
@@ -408,5 +456,18 @@ export class ChessService {
     });
 
     this.activeMatches.delete(matchID);
+
+    this.notifyPlayersLeaveAvailability(
+      updatedMatch.playerWhiteID,
+      updatedMatch.playerBlackID,
+    );
+  }
+
+  private notifyPlayersLeaveAvailability(...playersIDs: string[]) {
+    playersIDs.forEach((player) => {
+      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_LEAVE_AVAILABLE, {
+        playerID: player,
+      });
+    });
   }
 }

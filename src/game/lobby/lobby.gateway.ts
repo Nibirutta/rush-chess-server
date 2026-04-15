@@ -23,7 +23,8 @@ import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.
 import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
 import {
   OnInviteExpired,
-  OnMatchTerminated,
+  OnPlayerEnteringMatch,
+  OnPlayerLeavingMatch,
   OnPlayerStatusChanged,
 } from 'src/common/event/domain.events';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
@@ -161,12 +162,17 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.socketsLeave(payload.waitRoomID);
   }
 
-  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED)
-  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_ABANDONED)
-  revertPlayersToAwaitStatus(payload: OnMatchTerminated) {
-    payload.playersInMatch.forEach((player) => {
-      this.lobbyService.changePlayerStatus(player, PlayerStatus.Awaiting);
-    });
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_PLAYER_ENTERING_MATCH)
+  playerEnteringBattle(payload: OnPlayerEnteringMatch) {
+    this.lobbyService.changePlayerStatus(
+      payload.playerID,
+      PlayerStatus.On_Battle,
+    );
+  }
+
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_PLAYER_LEAVING_MATCH)
+  playerLeavingBattle(payload: OnPlayerLeavingMatch) {
+    this.lobbyService.changePlayerStatus(payload.playerID, PlayerStatus.Ready);
   }
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED)

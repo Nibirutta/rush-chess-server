@@ -8,6 +8,7 @@ export const INCOMING_MESSAGES = {
   JOIN_MATCH: 'join_match',
   MAKE_MOVE: 'make_move',
   REQUEST_DRAW: 'request_draw',
+  LEAVE_MATCH: 'leave_match',
 } as const;
 
 export const OUTGOING_MESSAGES = {
@@ -32,4 +33,5 @@ export const OUTGOING_MESSAGES = {
   NOTIFY_DRAW_CLAIM_AVAILABLE: 'notify_draw_claim_avaliable',
   NOTIFY_DRAW: 'notify_draw',
   NOTIFY_CHECKMATE: 'notify_checkmate',
+  NOTIFY_LEAVE_AVAILABILITY: 'notify_leave_availability',
 } as const;

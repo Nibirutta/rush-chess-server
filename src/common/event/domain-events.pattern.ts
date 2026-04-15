@@ -11,4 +11,7 @@ export const DOMAIN_EVENTS_PATTERN = {
   ON_MATCH_START: 'on_match_start',
   ON_MATCH_RESTART: 'on_match_restart',
   ON_OPPONENT_DISCONNECTION: 'on_opponent_disconnection',
+  ON_LEAVE_AVAILABLE: 'on_leave_available',
+  ON_PLAYER_ENTERING_MATCH: 'on_player_entering_match',
+  ON_PLAYER_LEAVING_MATCH: 'on_player_leaving_match',
 } as const;

@@ -161,12 +161,6 @@ export class LobbyService {
         challengerID: inviteSession.challengerID,
         opponentID: inviteSession.opponentID,
       });
-
-      this.changePlayerStatus(
-        inviteSession.challengerID,
-        PlayerStatus.On_Battle,
-      );
-      this.changePlayerStatus(inviteSession.opponentID, PlayerStatus.On_Battle);
     } else {
       this.changePlayerStatus(inviteSession.challengerID, PlayerStatus.Ready);
       this.changePlayerStatus(inviteSession.opponentID, PlayerStatus.Ready);
