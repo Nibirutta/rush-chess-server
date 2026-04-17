@@ -4,6 +4,7 @@ export const DOMAIN_EVENTS_PATTERN = {
   ON_MATCH_ACCEPTED: 'on_match_accepted',
   ON_MATCH_EXPIRED: 'on_match_expired',
   ON_MATCH_ABANDONED: 'on_match_abandoned',
+  ON_MATCH_TERMINATED: 'on_match_terminated',
   ON_PLAYER_IN_CHECK: 'on_player_in_check',
   ON_THREEFOLD_REPETITION: 'on_threefold_repetition',
   ON_DRAW: 'on_draw',
@@ -11,7 +12,4 @@ export const DOMAIN_EVENTS_PATTERN = {
   ON_MATCH_START: 'on_match_start',
   ON_MATCH_RESTART: 'on_match_restart',
   ON_OPPONENT_DISCONNECTION: 'on_opponent_disconnection',
-  ON_LEAVE_AVAILABLE: 'on_leave_available',
-  ON_PLAYER_ENTERING_MATCH: 'on_player_entering_match',
-  ON_PLAYER_LEAVING_MATCH: 'on_player_leaving_match',
 } as const;

@@ -33,5 +33,6 @@ export const OUTGOING_MESSAGES = {
   NOTIFY_DRAW_CLAIM_AVAILABLE: 'notify_draw_claim_avaliable',
   NOTIFY_DRAW: 'notify_draw',
   NOTIFY_CHECKMATE: 'notify_checkmate',
-  NOTIFY_LEAVE_AVAILABILITY: 'notify_leave_availability',
+  NOTIFY_CAN_NOT_LEAVE_FROM_ONGOING_MATCH:
+    'notify_can_not_leave_from_ongoing_match',
 } as const;

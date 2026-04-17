@@ -26,7 +26,6 @@ import {
   OnOpponentDisconnection,
   OnPlayerInCheck,
   OnThreefoldRepetition,
-  OnLeaveAvailable,
   OnMatchExpired,
 } from 'src/common/event/domain.events';
 import { MakeMoveDTO, RequestDrawDTO } from '../dto/match.dto';
@@ -109,14 +108,26 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage(INCOMING_MESSAGES.LEAVE_MATCH)
   requestLeave(@ConnectedSocket() client: Socket) {
-    client.disconnect();
+    const matchID = client.handshake.query.matchID;
+    const playerData = client.data as PlayerSocketData;
+
+    const canLeave =
+      typeof matchID === 'string'
+        ? this.chessService.canLeave(matchID, playerData.ID)
+        : true;
+
+    if (canLeave) {
+      client.disconnect();
+    }
+
+    client.emit(OUTGOING_MESSAGES.NOTIFY_CAN_NOT_LEAVE_FROM_ONGOING_MATCH);
   }
 
   // Events
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED)
-  deleteExpiredMatch(payload: OnMatchExpired) {
-    this.server.in(payload.matchID).disconnectSockets();
+  notifyMissingOpponent(payload: OnMatchExpired) {
+    this.server.in(payload.matchID);
   }
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_PLAYER_IN_CHECK)
@@ -186,12 +197,5 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server
       .in(payload.matchID)
       .emit(OUTGOING_MESSAGES.NOTIFY_MATCH_ABANDONED);
-  }
-
-  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_LEAVE_AVAILABLE)
-  notifyLeaveAvailability(payload: OnLeaveAvailable) {
-    this.server
-      .to(payload.playerID)
-      .emit(OUTGOING_MESSAGES.NOTIFY_LEAVE_AVAILABILITY);
   }
 }
