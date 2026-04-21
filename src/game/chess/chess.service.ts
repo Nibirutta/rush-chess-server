@@ -5,7 +5,7 @@ import { GameData } from '../interfaces/match.interface';
 import { MatchID } from '../types/game.types';
 import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
-import { Chess, DEFAULT_POSITION } from 'chess.js';
+import { Chess, DEFAULT_POSITION, Square } from 'chess.js';
 import {
   InvalidMovementException,
   MatchNotFoundException,
@@ -268,6 +268,21 @@ export class ChessService {
     }
   }
 
+  getAvailableMoves(matchID: string, piecePosition: Square) {
+    const foundMatch = this.activeMatches.get(matchID);
+
+    if (!foundMatch) throw new MatchNotFoundException('Match not found');
+
+    const chessState = new Chess(foundMatch.gameState.fenHistory.at(-1));
+
+    const possibleMoves = chessState.moves({
+      square: piecePosition,
+      verbose: true,
+    });
+
+    return possibleMoves;
+  }
+
   async makeMove(
     matchID: string,
     from: string,
@@ -299,7 +314,7 @@ export class ChessService {
 
       return foundMatch;
     } catch {
-      throw new InvalidMovementException('Invalid movement, try it again');
+      throw new InvalidMovementException('Invalid movement');
     }
   }
 

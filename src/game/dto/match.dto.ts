@@ -1,4 +1,15 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Square, SQUARES } from 'chess.js';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+export class AvailableMovesDTO {
+  @IsNotEmpty()
+  @IsString()
+  matchID: string;
+
+  @IsNotEmpty()
+  @IsIn(SQUARES)
+  piecePosition: Square;
+}
 
 export class MakeMoveDTO {
   @IsNotEmpty()

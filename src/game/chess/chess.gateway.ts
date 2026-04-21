@@ -28,7 +28,11 @@ import {
   OnThreefoldRepetition,
   OnMatchExpired,
 } from 'src/common/event/domain.events';
-import { MakeMoveDTO, RequestDrawDTO } from '../dto/match.dto';
+import {
+  MakeMoveDTO,
+  RequestDrawDTO,
+  AvailableMovesDTO,
+} from '../dto/match.dto';
 import { DrawType } from 'src/common/types/draw.types';
 import { PlayerSocketData } from 'src/common/interfaces/socket-data.interface';
 
@@ -74,6 +78,19 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!(typeof matchID === 'string')) return;
 
     await this.chessService.disconnectFromMatch(matchID, playerData.ID);
+  }
+
+  @SubscribeMessage(INCOMING_MESSAGES.GET_AVAILABLE_MOVES)
+  getAvailableMoves(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() availableMovesDTO: AvailableMovesDTO,
+  ) {
+    const availableMoves = this.chessService.getAvailableMoves(
+      availableMovesDTO.matchID,
+      availableMovesDTO.piecePosition,
+    );
+
+    client.emit(OUTGOING_MESSAGES.NOTIFY_AVAILABLE_MOVES, availableMoves);
   }
 
   @SubscribeMessage(INCOMING_MESSAGES.MAKE_MOVE)

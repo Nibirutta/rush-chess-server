@@ -3,7 +3,7 @@ import { LobbyService } from './lobby.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DatabaseService } from 'src/database/database.service';
 import { PlayerSocketData } from 'src/common/interfaces/socket-data.interface';
-import { PaginationPropertiesDTO } from '../dto/pagination-properties.dto';
+import { PaginationPropertiesDTO } from '../dto/message.dto';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
 import { PlayerStatus } from 'src/common/enums/player-status.enum';
 import {
