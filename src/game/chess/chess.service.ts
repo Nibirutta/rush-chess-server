@@ -2,13 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { OnMatchAccepted } from 'src/common/event/domain.events';
 import { DatabaseService } from 'src/database/database.service';
 import { GameData } from '../interfaces/match.interface';
-import { MatchID } from '../types/game.types';
+import { MatchID, PlayerRole } from '../types/game.types';
 import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
 import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
 import { Chess, DEFAULT_POSITION, Square } from 'chess.js';
 import {
   InvalidMovementException,
   MatchNotFoundException,
+  PlayerCannotSurrenderException,
 } from 'src/common/errors/match.errors';
 
 @Injectable()
@@ -114,6 +115,11 @@ export class ChessService {
 
     const playerAsWhiteID = ongoingMatch.playerAsWhite.ID;
     const playerAsBlackID = ongoingMatch.playerAsBlack.ID;
+    const role: PlayerRole =
+      ongoingMatch.playerAsWhite.ID === connectedPlayerID ||
+      ongoingMatch.playerAsBlack.ID === connectedPlayerID
+        ? 'player'
+        : 'spectator';
 
     switch (connectedPlayerID) {
       case playerAsWhiteID:
@@ -128,11 +134,14 @@ export class ChessService {
 
     this.initiateMatchIfBothPlayersAreConnected(ongoingMatch);
 
-    return ongoingMatch;
+    return {
+      ongoingMatch: ongoingMatch,
+      role: role,
+    };
   }
 
-  async disconnectFromMatch(matchID: string, disconnectedPlayerID: string) {
-    const ongoingMatch = await this.loadOngoingMatch(matchID);
+  disconnectFromMatch(matchID: string, disconnectedPlayerID: string) {
+    const ongoingMatch = this.activeMatches.get(matchID);
 
     if (!ongoingMatch) return;
 
@@ -414,8 +423,16 @@ export class ChessService {
         where: { id: gameData.matchID },
         data: {
           status: 'FINISHED',
-          winnerID: winner,
-          loserID: loser,
+          winner: {
+            connect: {
+              id: winner,
+            },
+          },
+          loser: {
+            connect: {
+              id: loser,
+            },
+          },
           endedAt: new Date(),
         },
       });
@@ -460,6 +477,56 @@ export class ChessService {
     this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_MATCH_TERMINATED, {
       playersInMatch: [updatedMatch.playerWhiteID, updatedMatch.playerBlackID],
     });
+  }
+
+  async requestSurrender(matchID: string, playerSurrendered: string) {
+    const foundMatch = this.activeMatches.get(matchID);
+
+    if (!foundMatch) throw new MatchNotFoundException('Match not found');
+
+    const playerAsWhite = foundMatch.playerAsWhite.ID;
+    const playerAsBlack = foundMatch.playerAsBlack.ID;
+
+    if (
+      !(
+        playerSurrendered === playerAsWhite ||
+        playerSurrendered === playerAsBlack
+      )
+    )
+      throw new PlayerCannotSurrenderException('Player cannot surrender');
+
+    const [winner, loser] =
+      playerAsWhite === playerSurrendered
+        ? [playerAsBlack, playerAsWhite]
+        : [playerAsWhite, playerAsBlack];
+
+    const updatedMatch = await this.databaseService.match.update({
+      where: {
+        id: matchID,
+      },
+      data: {
+        status: 'FINISHED',
+        winner: {
+          connect: {
+            id: winner,
+          },
+        },
+        loser: {
+          connect: {
+            id: loser,
+          },
+        },
+        endedAt: new Date(),
+      },
+    });
+
+    this.activeMatches.delete(matchID);
+
+    this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_MATCH_TERMINATED, {
+      playersInMatch: [playerAsWhite, playerAsBlack],
+    });
+
+    return updatedMatch;
   }
 
   canLeave(matchID: string, playerID: string): boolean {

@@ -32,6 +32,7 @@ import {
   MakeMoveDTO,
   RequestDrawDTO,
   AvailableMovesDTO,
+  RequestSurrenderDTO,
 } from '../dto/match.dto';
 import { DrawType } from 'src/common/types/draw.types';
 import { PlayerSocketData } from 'src/common/interfaces/socket-data.interface';
@@ -51,12 +52,12 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const matchID = client.handshake.query.matchID;
     const playerData = client.data as PlayerSocketData;
 
-    const ongoingMatch =
+    const matchData =
       typeof matchID === 'string'
         ? await this.chessService.connectToMatch(matchID, playerData.ID)
         : undefined;
 
-    if (!ongoingMatch) {
+    if (!matchData) {
       client.emit(OUTGOING_MESSAGES.NOTIFY_INVALID_MATCH);
 
       client.disconnect();
@@ -64,20 +65,20 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    await client.join(ongoingMatch.matchID);
+    await client.join(matchData.ongoingMatch.matchID);
 
     client.emit(OUTGOING_MESSAGES.NOTIFY_LOAD_MATCH, {
-      match: ongoingMatch,
+      match: matchData,
     });
   }
 
-  async handleDisconnect(client: Socket) {
+  handleDisconnect(client: Socket) {
     const matchID = client.handshake.query.matchID;
     const playerData = client.data as PlayerSocketData;
 
     if (!(typeof matchID === 'string')) return;
 
-    await this.chessService.disconnectFromMatch(matchID, playerData.ID);
+    this.chessService.disconnectFromMatch(matchID, playerData.ID);
   }
 
   @SubscribeMessage(INCOMING_MESSAGES.GET_AVAILABLE_MOVES)
@@ -112,14 +113,33 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage(INCOMING_MESSAGES.REQUEST_DRAW)
-  requestDraw(@MessageBody() requestDrawDTO: RequestDrawDTO) {
+  async requestDraw(@MessageBody() requestDrawDTO: RequestDrawDTO) {
     const matchID = requestDrawDTO.matchID;
     const drawBy: DrawType = 'Draw by threefold repetition';
 
-    void this.chessService.requestDraw(matchID);
+    await this.chessService.requestDraw(matchID);
 
     this.server.to(matchID).emit(OUTGOING_MESSAGES.NOTIFY_DRAW, {
       drawBy: drawBy,
+    });
+  }
+
+  @SubscribeMessage(INCOMING_MESSAGES.REQUEST_SURRENDER)
+  async requestSurrender(
+    @MessageBody() requestSurrenderDTO: RequestSurrenderDTO,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const playerData = client.data as PlayerSocketData;
+    const matchID = requestSurrenderDTO.matchID;
+
+    const updatedMatch = await this.chessService.requestSurrender(
+      matchID,
+      playerData.ID,
+    );
+
+    this.server.to(matchID).emit(OUTGOING_MESSAGES.NOTIFY_SURRENDER, {
+      winner: updatedMatch.winnerID,
+      loser: updatedMatch.loserID,
     });
   }
 

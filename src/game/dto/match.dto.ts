@@ -40,3 +40,9 @@ export class RequestDrawDTO {
   @IsString()
   matchID: string;
 }
+
+export class RequestSurrenderDTO {
+  @IsNotEmpty()
+  @IsString()
+  matchID: string;
+}

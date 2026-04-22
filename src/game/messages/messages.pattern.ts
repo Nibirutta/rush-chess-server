@@ -9,6 +9,7 @@ export const INCOMING_MESSAGES = {
   GET_AVAILABLE_MOVES: 'get_available_moves',
   MAKE_MOVE: 'make_move',
   REQUEST_DRAW: 'request_draw',
+  REQUEST_SURRENDER: 'request_surrender',
   LEAVE_MATCH: 'leave_match',
 } as const;
 
@@ -34,6 +35,7 @@ export const OUTGOING_MESSAGES = {
   NOTIFY_OPPONENT_DISCONNECTION: 'notify_opponent_disconnection',
   NOTIFY_DRAW_CLAIM_AVAILABLE: 'notify_draw_claim_avaliable',
   NOTIFY_DRAW: 'notify_draw',
+  NOTIFY_SURRENDER: 'notify_surrender',
   NOTIFY_CHECKMATE: 'notify_checkmate',
   NOTIFY_CAN_NOT_LEAVE_FROM_ONGOING_MATCH:
     'notify_can_not_leave_from_ongoing_match',
