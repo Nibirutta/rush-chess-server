@@ -53,58 +53,27 @@ export class TokenService {
       | ResetTokenPayloadDto,
     tokenType: TokenType,
   ): Promise<string> {
-    switch (tokenType) {
-      case TokenType.ACCESS: {
-        const accessToken = await this.jwtService.signAsync(payload, {
-          expiresIn: this.getTokenDuration(tokenType),
-          secret: this.getSecretByTokenType(tokenType),
-        });
+    const encryptedToken = await this.jwtService.signAsync(payload, {
+      expiresIn: this.getTokenDuration(tokenType),
+      secret: this.getSecretByTokenType(tokenType),
+    });
 
-        return accessToken;
-      }
-      case TokenType.SESSION: {
-        const sessionToken = await this.jwtService.signAsync(payload, {
-          expiresIn: this.getTokenDuration(tokenType),
-          secret: this.getSecretByTokenType(tokenType),
-        });
-
-        const sessionTokenData: Prisma.TokenCreateInput = {
-          token: sessionToken,
-          type: TokenType.SESSION,
-          player: {
-            connect: {
-              id: payload.id,
-            },
+    if (tokenType === TokenType.SESSION || tokenType === TokenType.RESET) {
+      const encryptedTokenData: Prisma.TokenCreateInput = {
+        token: encryptedToken,
+        type: tokenType,
+        player: {
+          connect: {
+            id: payload.id,
           },
-          expiresAt: this.getTokenExpirationDate(tokenType),
-        };
+        },
+        expiresAt: this.getTokenExpirationDate(tokenType),
+      };
 
-        await this.databaseService.token.create({ data: sessionTokenData });
-
-        return sessionToken;
-      }
-      case TokenType.RESET: {
-        const resetToken = await this.jwtService.signAsync(payload, {
-          expiresIn: this.getTokenDuration(tokenType),
-          secret: this.getSecretByTokenType(tokenType),
-        });
-
-        const resetTokenData: Prisma.TokenCreateInput = {
-          token: resetToken,
-          type: TokenType.RESET,
-          player: {
-            connect: {
-              id: payload.id,
-            },
-          },
-          expiresAt: this.getTokenExpirationDate(tokenType),
-        };
-
-        await this.databaseService.token.create({ data: resetTokenData });
-
-        return resetToken;
-      }
+      await this.databaseService.token.create({ data: encryptedTokenData });
     }
+
+    return encryptedToken;
   }
 
   async generateSessionTokens(id: string, nickname: string) {
@@ -165,25 +134,8 @@ export class TokenService {
       });
 
       if (!foundToken) {
-        try {
-          const decodedToken = this.jwtService.verify<
-            DecodedSessionToken | DecodedResetToken
-          >(token, {
-            secret: this.getSecretByTokenType(tokenType),
-          });
+        void this.protectPlayerFromTokenReplayAttack(token, tokenType);
 
-          const hackedUser = await this.databaseService.player.findUnique({
-            where: { id: decodedToken.id },
-          });
-
-          if (hackedUser) {
-            await this.databaseService.token.deleteMany({
-              where: { player: hackedUser },
-            });
-          }
-        } catch {
-          // Do nothing
-        }
         throw new FailedTokenValidationError('Invalid token');
       }
 
@@ -203,6 +155,31 @@ export class TokenService {
 
   async deleteToken(token: string) {
     return this.databaseService.token.delete({ where: { token: token } });
+  }
+
+  async protectPlayerFromTokenReplayAttack(
+    token: string,
+    tokenType: TokenType,
+  ) {
+    try {
+      const decodedToken = this.jwtService.verify<
+        DecodedSessionToken | DecodedResetToken
+      >(token, {
+        secret: this.getSecretByTokenType(tokenType),
+      });
+
+      const invadedUser = await this.databaseService.player.findUnique({
+        where: { id: decodedToken.id },
+      });
+
+      if (invadedUser) {
+        await this.databaseService.token.deleteMany({
+          where: { playerID: invadedUser.id },
+        });
+      }
+    } catch {
+      // Do nothing
+    }
   }
 
   getSecretByTokenType(tokenType: TokenType): string {

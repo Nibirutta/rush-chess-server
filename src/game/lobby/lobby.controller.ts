@@ -15,10 +15,10 @@ import { HttpDomainExceptionFilter } from 'src/common/filters/http-domain-except
 @UsePipes(new ValidationPipe(ValidationOptions))
 @UseFilters(new HttpDomainExceptionFilter())
 export class LobbyController {
-  constructor(private readonly chatService: LobbyService) {}
+  constructor(private readonly lobbyService: LobbyService) {}
 
   @Get('messages')
   async getMessages(@Body() paginationPropertiesDTO: PaginationPropertiesDTO) {
-    return this.chatService.getMessages(paginationPropertiesDTO);
+    return this.lobbyService.getMessages(paginationPropertiesDTO);
   }
 }
