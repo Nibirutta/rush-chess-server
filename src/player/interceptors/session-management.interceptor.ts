@@ -6,8 +6,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { Observable, map } from 'rxjs';
-import { TokenService } from 'src/token/token.service';
-import { TokenType } from 'src/common/enums/token-type.enum';
+import { TokenService, TokenType } from '@app/common';
 
 @Injectable()
 export class SessionManagementInterceptor implements NestInterceptor {

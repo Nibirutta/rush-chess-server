@@ -18,8 +18,7 @@ import { SessionManagementInterceptor } from './interceptors/session-management.
 import { SessionGuard } from './guards/session.guard';
 import { Request } from 'express';
 import { LogoutInterceptor } from './interceptors/logout.interceptor';
-import { ValidationOptions } from 'src/common/options/validation.options';
-import { HttpDomainExceptionFilter } from 'src/common/filters/http-domain-exception.filter';
+import { HttpDomainExceptionFilter, ValidationOptions } from '@app/common';
 
 @Controller('player')
 @UsePipes(new ValidationPipe(ValidationOptions))

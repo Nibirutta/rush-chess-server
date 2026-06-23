@@ -1,19 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/database/database.service';
-import { Prisma } from 'src/generated/prisma/client';
-import { SendMessageDTO, PaginationPropertiesDTO } from '../dto/message.dto';
-import { PlayerSocketData } from '../../common/interfaces/socket-data.interface';
-import { randomUUID } from 'crypto';
-import { InviteSession, InviteTicket } from '../interfaces/invite.interface';
-import { PlayerLobbyData } from '../interfaces/player-lobby-data.interface';
-import { PlayerStatus } from 'src/common/enums/player-status.enum';
 import {
+  DatabaseService,
+  PlayerSocketData,
+  PlayerStatus,
   InvalidOpponentError,
   PlayerIsOfflineError,
   SessionNotFoundError,
-} from 'src/common/errors/lobby.errors';
-import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
-import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
+  DomainEventEmitterService,
+  DOMAIN_EVENTS_PATTERN,
+} from '@app/common';
+import { Prisma } from 'src/generated/prisma/client';
+import { SendMessageDTO, PaginationPropertiesDTO } from '../dto/message.dto';
+import { randomUUID } from 'crypto';
+import { InviteSession, InviteTicket } from '../interfaces/invite.interface';
+import { PlayerLobbyData } from '../interfaces/player-lobby-data.interface';
 import { PlayerID, WaitRoomID } from '../types/game.types';
 
 @Injectable()

@@ -1,7 +1,6 @@
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { ChessService } from './chess.service';
-import { DatabaseService } from 'src/database/database.service';
-import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
+import { DatabaseService, DomainEventEmitterService } from '@app/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('ChessService', () => {

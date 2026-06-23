@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { OnMatchAccepted } from 'src/common/event/domain.events';
-import { DatabaseService } from 'src/database/database.service';
-import { GameData } from '../interfaces/match.interface';
-import { MatchID, PlayerRole } from '../types/game.types';
-import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
-import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
-import { Chess, DEFAULT_POSITION, Square } from 'chess.js';
 import {
+  OnMatchAccepted,
+  DatabaseService,
+  DomainEventEmitterService,
+  DOMAIN_EVENTS_PATTERN,
   InvalidMovementException,
   MatchNotFoundException,
   PlayerCannotSurrenderException,
-} from 'src/common/errors/match.errors';
+} from '@app/common';
+import { GameData } from '../interfaces/match.interface';
+import { MatchID, PlayerRole } from '../types/game.types';
+import { Chess, DEFAULT_POSITION, Square } from 'chess.js';
 
 @Injectable()
 export class ChessService {
@@ -163,7 +163,7 @@ export class ChessService {
       });
 
       if (!retrievedMatch || !retrievedMatch.gameState) return;
-      if (retrievedMatch.status != 'STARTED') return;
+      if (retrievedMatch.status !== 'STARTED') return;
 
       const retrievedOngoingMatch: GameData = {
         matchID: retrievedMatch.id,
@@ -193,7 +193,7 @@ export class ChessService {
     if (
       gameData.playerAsWhite.connected &&
       gameData.playerAsBlack.connected &&
-      gameData.gameState.matchState != 'started'
+      gameData.gameState.matchState !== 'started'
     ) {
       this.domainEventEmitter.emit(
         gameData.gameState.matchState === 'waiting'

@@ -8,26 +8,24 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { ValidationPipe, UsePipes, UseFilters } from '@nestjs/common';
-import { ValidationOptions } from 'src/common/options/validation.options';
-import { Socket, Server } from 'socket.io';
 import {
-  INCOMING_MESSAGES,
-  OUTGOING_MESSAGES,
-} from '../messages/messages.pattern';
-import { LobbyService } from './lobby.service';
-import { SendMessageDTO, IsTypingDTO } from '../dto/message.dto';
-import { PlayerSocketData } from '../../common/interfaces/socket-data.interface';
-import { InviteResponseDTO, SendInviteDTO } from '../dto/invite.dto';
-import { IsPlayerReadyDTO } from '../dto/lobby.dto';
-import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.filter';
-import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
-import {
+  ValidationOptions,
+  PlayerSocketData,
+  WsDomainExceptionFilter,
+  OnDomainEvents,
   OnInviteExpired,
   OnMatchTerminated,
   OnPlayerStatusChanged,
-} from 'src/common/event/domain.events';
-import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
-import { PlayerStatus } from 'src/common/enums/player-status.enum';
+  DOMAIN_EVENTS_PATTERN,
+  PlayerStatus,
+  INCOMING_MESSAGES,
+  OUTGOING_MESSAGES,
+} from '@app/common';
+import { Socket, Server } from 'socket.io';
+import { LobbyService } from './lobby.service';
+import { SendMessageDTO, IsTypingDTO } from '../dto/message.dto';
+import { InviteResponseDTO, SendInviteDTO } from '../dto/invite.dto';
+import { IsPlayerReadyDTO } from '../dto/lobby.dto';
 
 @WebSocketGateway({
   namespace: 'lobby',

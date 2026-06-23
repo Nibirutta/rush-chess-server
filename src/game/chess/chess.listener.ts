@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ChessService } from './chess.service';
-import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
-import { OnMatchAccepted } from 'src/common/event/domain.events';
-import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
+import {
+  OnDomainEvents,
+  OnMatchAccepted,
+  DOMAIN_EVENTS_PATTERN,
+} from '@app/common';
 
 @Injectable()
 export class ChessListener {

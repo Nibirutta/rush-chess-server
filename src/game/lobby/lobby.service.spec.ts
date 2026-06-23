@@ -1,17 +1,17 @@
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { LobbyService } from './lobby.service';
 import { Test, TestingModule } from '@nestjs/testing';
-import { DatabaseService } from 'src/database/database.service';
-import { PlayerSocketData } from 'src/common/interfaces/socket-data.interface';
-import { PaginationPropertiesDTO } from '../dto/message.dto';
-import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
-import { PlayerStatus } from 'src/common/enums/player-status.enum';
 import {
+  DatabaseService,
+  PlayerSocketData,
+  DOMAIN_EVENTS_PATTERN,
+  PlayerStatus,
   InvalidOpponentError,
   PlayerIsOfflineError,
   SessionNotFoundError,
-} from 'src/common/errors/lobby.errors';
-import { DomainEventEmitterService } from 'src/common/event/domain-event-emitter.service';
+  DomainEventEmitterService,
+} from '@app/common';
+import { PaginationPropertiesDTO } from '../dto/message.dto';
 
 describe('LobbyService', () => {
   let lobbyService: LobbyService;

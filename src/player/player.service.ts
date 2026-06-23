@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/database/database.service';
 import { Prisma } from 'src/generated/prisma/client';
 import { omit } from 'lodash';
 import {
@@ -8,13 +7,14 @@ import {
   LoginPlayerDTO,
 } from './contracts/player.dto';
 import * as bcrypt from 'bcrypt';
-import { TokenService } from 'src/token/token.service';
-import { TokenType } from 'src/common/enums/token-type.enum';
 import {
   InvalidPasswordError,
   InvalidUsernameError,
   PlayerNotFoundError,
-} from 'src/common/errors/player.errors';
+  TokenService,
+  TokenType,
+  DatabaseService,
+} from '@app/common';
 
 @Injectable()
 export class PlayerService {

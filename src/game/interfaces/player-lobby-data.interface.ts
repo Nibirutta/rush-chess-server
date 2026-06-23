@@ -1,5 +1,4 @@
-import { PlayerSocketData } from 'src/common/interfaces/socket-data.interface';
-import { PlayerStatus } from 'src/common/enums/player-status.enum';
+import { PlayerSocketData, PlayerStatus } from '@app/common';
 
 export interface PlayerLobbyData extends PlayerSocketData {
   socketID: string;

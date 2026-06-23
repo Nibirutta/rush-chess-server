@@ -1,24 +1,24 @@
 import { Injectable } from '@nestjs/common';
-import { TokenType } from '../common/enums/token-type.enum';
+import { TokenType } from '../enums/token-type.enum';
 import {
   AccessTokenPayloadDto,
   SessionTokenPayloadDto,
   ResetTokenPayloadDto,
-} from './contracts/token.dto';
-import { DatabaseService } from 'src/database/database.service';
+} from '../contracts/token.dto';
+import { DatabaseService } from '../database/database.service';
+import {
+  DecodedAccessToken,
+  DecodedSessionToken,
+  DecodedResetToken,
+} from '../interfaces/decoded-token.interface';
+import {
+  FailedTokenValidationError,
+  SecretMapEmptyError,
+} from '../errors/token.errors';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from 'src/generated/prisma/client';
 import { StringValue } from 'ms';
 import { ConfigService } from '@nestjs/config';
-import {
-  DecodedAccessToken,
-  DecodedResetToken,
-  DecodedSessionToken,
-} from './interfaces/decoded-token.interface';
-import {
-  FailedTokenValidationError,
-  SecretMapEmptyError,
-} from 'src/common/errors/token.errors';
 
 @Injectable()
 export class TokenService {

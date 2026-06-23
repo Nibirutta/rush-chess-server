@@ -1,8 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PlayerService } from './player.service';
-import { DatabaseService } from 'src/database/database.service';
-import { TokenService } from 'src/token/token.service';
 import * as bcrypt from 'bcrypt';
 import { omit } from 'lodash';
 import {
@@ -15,7 +13,9 @@ import {
   InvalidPasswordError,
   InvalidUsernameError,
   PlayerNotFoundError,
-} from 'src/common/errors/player.errors';
+  TokenService,
+  DatabaseService,
+} from '@app/common';
 
 describe('PlayerService', () => {
   let playerService: PlayerService;

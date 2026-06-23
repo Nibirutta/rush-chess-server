@@ -6,8 +6,7 @@ import {
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { Observable, map } from 'rxjs';
-import { TokenType } from 'src/common/enums/token-type.enum';
-import { TokenService } from 'src/token/token.service';
+import { TokenType, TokenService } from '@app/common';
 
 @Injectable()
 export class LogoutInterceptor implements NestInterceptor {

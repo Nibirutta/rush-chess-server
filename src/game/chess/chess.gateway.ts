@@ -8,34 +8,32 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { ValidationPipe, UsePipes, UseFilters } from '@nestjs/common';
-import { ValidationOptions } from 'src/common/options/validation.options';
-import {
-  INCOMING_MESSAGES,
-  OUTGOING_MESSAGES,
-} from '../messages/messages.pattern';
 import { ChessService } from './chess.service';
 import { Server, Socket } from 'socket.io';
-import { WsDomainExceptionFilter } from 'src/common/filters/ws-domain-exception.filter';
-import { OnDomainEvents } from 'src/common/event/on-domain-events.decorator';
-import { DOMAIN_EVENTS_PATTERN } from 'src/common/event/domain-events.pattern';
 import {
+  OnDomainEvents,
+  DOMAIN_EVENTS_PATTERN,
   OnCheckmate,
   OnDraw,
   OnMatchAbandoned,
-  OnMatchStartOrRestart as OnMatchStart,
+  OnMatchStart,
   OnOpponentDisconnection,
   OnPlayerInCheck,
   OnThreefoldRepetition,
   OnMatchExpired,
-} from 'src/common/event/domain.events';
+  DrawType,
+  PlayerSocketData,
+  WsDomainExceptionFilter,
+  ValidationOptions,
+  INCOMING_MESSAGES,
+  OUTGOING_MESSAGES,
+} from '@app/common';
 import {
   MakeMoveDTO,
   RequestDrawDTO,
   AvailableMovesDTO,
   RequestSurrenderDTO,
 } from '../dto/match.dto';
-import { DrawType } from 'src/common/types/draw.types';
-import { PlayerSocketData } from 'src/common/interfaces/socket-data.interface';
 
 @WebSocketGateway({
   namespace: 'chess',
@@ -163,8 +161,10 @@ export class ChessGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Events
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED)
-  notifyMissingOpponent(payload: OnMatchExpired) {
-    this.server.in(payload.matchID);
+  notifyMatchExpired(payload: OnMatchExpired) {
+    this.server
+      .in(payload.matchID)
+      .emit(OUTGOING_MESSAGES.NOTIFY_MATCH_EXPIRED);
   }
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_PLAYER_IN_CHECK)

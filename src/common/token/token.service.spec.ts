@@ -1,17 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
-import { DatabaseService } from 'src/database/database.service';
-import { TokenType } from 'src/common/enums/token-type.enum';
+import { DatabaseService } from '../database/database.service';
+import { TokenService } from './token.service';
+import { TokenType } from '../enums/token-type.enum';
 import {
   AccessTokenPayloadDto,
   SessionTokenPayloadDto,
   ResetTokenPayloadDto,
-} from 'src/token/contracts/token.dto';
-import { TokenService } from './token.service';
+} from '../contracts/token.dto';
+import { FailedTokenValidationError } from '../errors/token.errors';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Token, Player } from 'src/generated/prisma/client';
-import { FailedTokenValidationError } from 'src/common/errors/token.errors';
 
 describe('TokenService', () => {
   let tokenService: TokenService;

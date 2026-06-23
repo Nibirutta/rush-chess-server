@@ -1,13 +1,8 @@
-import { IsNotEmpty, IsString } from 'class-validator';
-
 export class BaseTokenPayloadDto {
-  @IsNotEmpty()
   id: string;
 }
 
 export class AccessTokenPayloadDto extends BaseTokenPayloadDto {
-  @IsNotEmpty()
-  @IsString()
   nickname: string;
 }
 

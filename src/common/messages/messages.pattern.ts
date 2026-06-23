@@ -14,6 +14,7 @@ export const INCOMING_MESSAGES = {
 } as const;
 
 export const OUTGOING_MESSAGES = {
+  NOTIFY_EXCEPTION: 'notify_exception',
   NOTIFY_ONLINE_PLAYERS: 'notify_online_players',
   NOTIFY_MESSAGE: 'notify_message',
   NOTIFY_TYPING: 'notify_typing',

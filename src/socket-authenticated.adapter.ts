@@ -1,16 +1,16 @@
 /* eslint-disable */
 import { INestApplicationContext } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
-import { TokenService } from './token/token.service';
-import { ExtendedError, Server, ServerOptions, Socket } from 'socket.io';
-import * as cookie from 'cookie';
-import { TokenType } from './common/enums/token-type.enum';
-import { PlayerSocketData } from './common/interfaces/socket-data.interface';
-import { corsOptions } from './configCors';
 import {
+  TokenService,
+  TokenType,
+  PlayerSocketData,
   InconsistentTokenInfoError,
   ValidationTokenMissingError,
-} from './common/errors/token.errors';
+} from '@app/common';
+import { ExtendedError, Server, ServerOptions, Socket } from 'socket.io';
+import * as cookie from 'cookie';
+import { corsOptions } from './configCors';
 
 export class SocketAuthenticatedAdapter extends IoAdapter {
   private readonly tokenService: TokenService;
@@ -45,7 +45,7 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
         TokenType.SESSION,
       );
 
-      if (decodedAccessToken.id != decodedSessionToken.id)
+      if (decodedAccessToken.id !== decodedSessionToken.id)
         throw new InconsistentTokenInfoError('Decoded token info conflict');
 
       const playerData: PlayerSocketData = {
