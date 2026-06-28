@@ -5,14 +5,14 @@ import {
   DomainEventEmitterModule,
 } from '@app/common';
 import { GameModule } from './game/game.module';
-import { ConfigModule } from '@nestjs/config';
 import { PlayerModule } from './player/player.module';
+import { DomainRedisModule } from './common/redis/domain-redis.module';
+import { ChessConfigModule } from './common/config/chess-config.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ChessConfigModule,
+    DomainRedisModule,
     DomainEventEmitterModule,
     DatabaseModule,
     GameModule,

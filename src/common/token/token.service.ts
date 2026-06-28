@@ -18,14 +18,14 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from 'src/generated/prisma/client';
 import { StringValue } from 'ms';
-import { ConfigService } from '@nestjs/config';
+import { ChessConfigService } from '../config/chess-config.service';
 
 @Injectable()
 export class TokenService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly chessConfigService: ChessConfigService,
   ) {}
 
   private readonly tokenExpirations = {
@@ -184,11 +184,9 @@ export class TokenService {
 
   getSecretByTokenType(tokenType: TokenType): string {
     const secretMap = {
-      [TokenType.ACCESS]: this.configService.get<string>('ACCESS_TOKEN_SECRET'),
-      [TokenType.SESSION]: this.configService.get<string>(
-        'SESSION_TOKEN_SECRET',
-      ),
-      [TokenType.RESET]: this.configService.get<string>('RESET_TOKEN_SECRET'),
+      [TokenType.ACCESS]: this.chessConfigService.getAccessTokenSecret(),
+      [TokenType.SESSION]: this.chessConfigService.getSessionTokenSecret(),
+      [TokenType.RESET]: this.chessConfigService.getResetTokenSecret(),
     };
 
     if (!secretMap[tokenType])
