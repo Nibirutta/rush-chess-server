@@ -14,7 +14,23 @@ export class ChessConfigService {
   }
 
   getRedisURL(): string {
-    return this.configService.getOrThrow<string>('REDIS_URL');
+    const redisURL = this.configService.get<string | null>('REDIS_URL');
+
+    if (redisURL) {
+      return redisURL;
+    }
+
+    const altRedisURL = `redis://${this.getRedisHost()}:${this.getRedisPort()}`;
+
+    return altRedisURL;
+  }
+
+  getRedisHost(): string {
+    return this.configService.getOrThrow<string>('REDIS_HOST');
+  }
+
+  getRedisPort(): number {
+    return this.configService.getOrThrow<number>('REDIS_PORT');
   }
 
   getAccessTokenSecret(): string {
