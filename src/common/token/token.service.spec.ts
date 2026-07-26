@@ -103,7 +103,7 @@ describe('TokenService', () => {
       jwtServiceMock.signAsync.mockResolvedValue(jwtString);
 
       const sessionTokenPayload: SessionTokenPayloadDto = {
-        id: payloadStub.id,
+        playerID: payloadStub.id,
       };
 
       const result = await tokenService.generateToken(
@@ -124,7 +124,7 @@ describe('TokenService', () => {
         data: expect.objectContaining({
           token: jwtString,
           type: TokenType.SESSION,
-          player: { connect: { id: sessionTokenPayload.id } },
+          player: { connect: { id: sessionTokenPayload.playerID } },
         }),
       });
     });
@@ -132,7 +132,9 @@ describe('TokenService', () => {
     it('should generate a reset token and save to DB', async () => {
       jwtServiceMock.signAsync.mockResolvedValue(jwtString);
 
-      const resetTokenPayload: ResetTokenPayloadDto = { id: payloadStub.id };
+      const resetTokenPayload: ResetTokenPayloadDto = {
+        playerID: payloadStub.id,
+      };
 
       const result = await tokenService.generateToken(
         resetTokenPayload,
@@ -149,7 +151,7 @@ describe('TokenService', () => {
         data: expect.objectContaining({
           token: jwtString,
           type: TokenType.RESET,
-          player: { connect: { id: resetTokenPayload.id } },
+          player: { connect: { id: resetTokenPayload.playerID } },
         }),
       });
     });

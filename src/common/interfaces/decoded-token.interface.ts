@@ -1,18 +1,18 @@
 export interface DecodedAccessToken {
-  id: string;
-  nickname: string;
+  playerID: string;
+  playerNickname: string;
   iat: number;
   exp: number;
 }
 
 export interface DecodedSessionToken {
-  id: string;
+  playerID: string;
   iat: number;
   exp: number;
 }
 
 export interface DecodedResetToken {
-  id: string;
+  playerID: string;
   iat: number;
   exp: number;
 }

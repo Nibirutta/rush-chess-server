@@ -1,9 +1,9 @@
 export class BaseTokenPayloadDto {
-  id: string;
+  playerID: string;
 }
 
 export class AccessTokenPayloadDto extends BaseTokenPayloadDto {
-  nickname: string;
+  playerNickname: string;
 }
 
 export class SessionTokenPayloadDto extends BaseTokenPayloadDto {}

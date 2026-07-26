@@ -16,7 +16,7 @@ import {
   SecretMapEmptyError,
 } from '../errors/token.errors';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma } from 'src/generated/prisma/client';
+import { Prisma, Token } from 'src/generated/prisma/client';
 import { StringValue } from 'ms';
 import { ChessConfigService } from '../config/chess-config.service';
 
@@ -46,6 +46,36 @@ export class TokenService {
     },
   };
 
+  getSecretByTokenType(tokenType: TokenType): string {
+    const secretMap = {
+      [TokenType.ACCESS]: this.chessConfigService.getAccessTokenSecret(),
+      [TokenType.SESSION]: this.chessConfigService.getSessionTokenSecret(),
+      [TokenType.RESET]: this.chessConfigService.getResetTokenSecret(),
+    };
+
+    if (!secretMap[tokenType])
+      throw new SecretMapEmptyError('Token key is missing');
+
+    return secretMap[tokenType];
+  }
+
+  getTokenDuration(tokenType: TokenType): StringValue {
+    return this.tokenExpirations[tokenType].duration;
+  }
+
+  getTokenExpirationDate(tokenType: TokenType): Date {
+    const expirationDate = new Date();
+    expirationDate.setMinutes(
+      expirationDate.getMinutes() + this.tokenExpirations[tokenType].minutes,
+    );
+
+    return expirationDate;
+  }
+
+  getTokenMaxAge(tokenType: TokenType): number {
+    return this.tokenExpirations[tokenType].milliseconds;
+  }
+
   async generateToken(
     payload:
       | AccessTokenPayloadDto
@@ -64,7 +94,7 @@ export class TokenService {
         type: tokenType,
         player: {
           connect: {
-            id: payload.id,
+            id: payload.playerID,
           },
         },
         expiresAt: this.getTokenExpirationDate(tokenType),
@@ -74,31 +104,6 @@ export class TokenService {
     }
 
     return encryptedToken;
-  }
-
-  async generateSessionTokens(id: string, nickname: string) {
-    const accessTokenPayloadDto: AccessTokenPayloadDto = {
-      id: id,
-      nickname: nickname,
-    };
-
-    const sessionTokenPayloadDto: SessionTokenPayloadDto = {
-      id: id,
-    };
-
-    const accessToken = await this.generateToken(
-      accessTokenPayloadDto,
-      TokenType.ACCESS,
-    );
-    const sessionToken = await this.generateToken(
-      sessionTokenPayloadDto,
-      TokenType.SESSION,
-    );
-
-    return {
-      accessToken,
-      sessionToken,
-    };
   }
 
   validateToken(
@@ -153,14 +158,14 @@ export class TokenService {
     }
   }
 
-  async deleteToken(token: string) {
+  async deleteToken(token: string): Promise<Token> {
     return this.databaseService.token.delete({ where: { token: token } });
   }
 
   async protectPlayerFromTokenReplayAttack(
     token: string,
     tokenType: TokenType,
-  ) {
+  ): Promise<void> {
     try {
       const decodedToken = this.jwtService.verify<
         DecodedSessionToken | DecodedResetToken
@@ -168,47 +173,17 @@ export class TokenService {
         secret: this.getSecretByTokenType(tokenType),
       });
 
-      const invadedUser = await this.databaseService.player.findUnique({
-        where: { id: decodedToken.id },
+      const invadedPlayer = await this.databaseService.player.findUnique({
+        where: { id: decodedToken.playerID },
       });
 
-      if (invadedUser) {
+      if (invadedPlayer) {
         await this.databaseService.token.deleteMany({
-          where: { playerID: invadedUser.id },
+          where: { playerID: invadedPlayer.id },
         });
       }
     } catch {
       // Do nothing
     }
-  }
-
-  getSecretByTokenType(tokenType: TokenType): string {
-    const secretMap = {
-      [TokenType.ACCESS]: this.chessConfigService.getAccessTokenSecret(),
-      [TokenType.SESSION]: this.chessConfigService.getSessionTokenSecret(),
-      [TokenType.RESET]: this.chessConfigService.getResetTokenSecret(),
-    };
-
-    if (!secretMap[tokenType])
-      throw new SecretMapEmptyError('Token key is missing');
-
-    return secretMap[tokenType];
-  }
-
-  getTokenDuration(tokenType: TokenType): StringValue {
-    return this.tokenExpirations[tokenType].duration;
-  }
-
-  getTokenExpirationDate(tokenType: TokenType): Date {
-    const expirationDate = new Date();
-    expirationDate.setMinutes(
-      expirationDate.getMinutes() + this.tokenExpirations[tokenType].minutes,
-    );
-
-    return expirationDate;
-  }
-
-  getTokenMaxAge(tokenType: TokenType): number {
-    return this.tokenExpirations[tokenType].milliseconds;
   }
 }
