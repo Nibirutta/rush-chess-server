@@ -9,17 +9,21 @@ import {
   ValidationTokenMissingError,
 } from '../errors/token.errors';
 import {
-  InvalidPasswordError,
-  InvalidUsernameError,
+  InvalidCredentialsError,
+  PlayerAlreadyLoggedInError,
   PlayerNotFoundError,
+  PlayerConflictError,
 } from '../errors/player.errors';
 import {
   InvalidOpponentError,
   PlayerIsOfflineError,
-  SessionNotFoundError,
+  InviteNotFoundError,
 } from '../errors/lobby.errors';
 import { InputFieldIncorrectError } from '../errors/validation.errors';
-import { MatchNotFoundException } from '../errors/match.errors';
+import {
+  InvalidMovementException,
+  MatchNotFoundException,
+} from '../errors/match.errors';
 
 @Catch(DomainError)
 export class HttpDomainExceptionFilter extends BaseExceptionFilter {
@@ -27,20 +31,21 @@ export class HttpDomainExceptionFilter extends BaseExceptionFilter {
     [SecretMapEmptyError, HttpStatus.INTERNAL_SERVER_ERROR],
     [InconsistentTokenInfoError, HttpStatus.FORBIDDEN],
     [FailedTokenValidationError, HttpStatus.FORBIDDEN],
-    [InvalidPasswordError, HttpStatus.UNAUTHORIZED],
-    [InvalidUsernameError, HttpStatus.UNAUTHORIZED],
+    [InvalidCredentialsError, HttpStatus.UNAUTHORIZED],
     [PlayerIsOfflineError, HttpStatus.NOT_FOUND],
     [PlayerNotFoundError, HttpStatus.NOT_FOUND],
-    [SessionNotFoundError, HttpStatus.NOT_FOUND],
+    [InviteNotFoundError, HttpStatus.NOT_FOUND],
     [ValidationTokenMissingError, HttpStatus.NOT_FOUND],
     [MatchNotFoundException, HttpStatus.NOT_FOUND],
     [InputFieldIncorrectError, HttpStatus.BAD_REQUEST],
     [InvalidOpponentError, HttpStatus.BAD_REQUEST],
+    [InvalidMovementException, HttpStatus.BAD_REQUEST],
+    [PlayerAlreadyLoggedInError, HttpStatus.FORBIDDEN],
+    [PlayerConflictError, HttpStatus.CONFLICT],
   ]);
 
   catch(error: DomainError, host: ArgumentsHost): void {
-    const context = host.switchToHttp();
-    const response = context.getResponse<Response>();
+    const response: Response = host.switchToHttp().getResponse<Response>();
 
     const errorClass = error.constructor as Type<DomainError>;
     const status =
