@@ -14,6 +14,7 @@ datasource db {
 }
 
 enum MatchStatus {
+  WAITING
   STARTED
   FINISHED
   ABANDONED
@@ -72,7 +73,7 @@ model Message {
 
 model Match {
   id String @id
-  status MatchStatus @default(STARTED)
+  status MatchStatus @default(WAITING)
 
   gameState GameState?
 
