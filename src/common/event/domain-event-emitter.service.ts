@@ -6,7 +6,10 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 export class DomainEventEmitterService {
   constructor(private readonly eventEmitter: EventEmitter2) {}
 
-  emit<K extends keyof DomainEventsMap>(event: K, payload: DomainEventsMap[K]) {
+  emit<K extends keyof DomainEventsMap>(
+    event: K,
+    payload: DomainEventsMap[K],
+  ): boolean {
     return this.eventEmitter.emit(event, payload);
   }
 }

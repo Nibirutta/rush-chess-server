@@ -8,7 +8,9 @@ export interface OnPlayerStatusChanged {
 }
 
 export interface OnInviteExpired {
-  waitRoomID: string;
+  inviteID: string;
+  challengerID: string;
+  opponentID: string;
 }
 
 export interface OnMatchAccepted {
@@ -17,16 +19,13 @@ export interface OnMatchAccepted {
   opponentID: string;
 }
 
-export interface OnMatchExpired {
+export interface OnFinishedMatch {
   matchID: string;
-}
-
-export interface OnMatchAbandoned {
-  matchID: string;
-}
-
-export interface OnMatchTerminated {
-  playersInMatch: string[];
+  reason: 'Abandoned' | 'Expired' | 'Draw' | 'Checkmate' | 'Surrendered';
+  playerIDs: string[];
+  drawType?: DrawType;
+  winnerID?: string;
+  loserID?: string;
 }
 
 export interface OnPlayerInCheck {
@@ -35,17 +34,6 @@ export interface OnPlayerInCheck {
 
 export interface OnThreefoldRepetition {
   matchID: string;
-}
-
-export interface OnDraw {
-  matchID: string;
-  drawType: DrawType;
-}
-
-export interface OnCheckmate {
-  matchID: string;
-  winnerID: string;
-  loserID: string;
 }
 
 export interface OnMatchStart {
@@ -61,14 +49,9 @@ export type DomainEventsMap = {
   [DOMAIN_EVENTS_PATTERN.ON_INVITE_EXPIRED]: OnInviteExpired;
   [DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED]: OnPlayerStatusChanged;
   [DOMAIN_EVENTS_PATTERN.ON_MATCH_ACCEPTED]: OnMatchAccepted;
-  [DOMAIN_EVENTS_PATTERN.ON_MATCH_EXPIRED]: OnMatchExpired;
-  [DOMAIN_EVENTS_PATTERN.ON_MATCH_ABANDONED]: OnMatchAbandoned;
-  [DOMAIN_EVENTS_PATTERN.ON_MATCH_TERMINATED]: OnMatchTerminated;
+  [DOMAIN_EVENTS_PATTERN.ON_FINISHED_MATCH]: OnFinishedMatch;
   [DOMAIN_EVENTS_PATTERN.ON_PLAYER_IN_CHECK]: OnPlayerInCheck;
   [DOMAIN_EVENTS_PATTERN.ON_THREEFOLD_REPETITION]: OnThreefoldRepetition;
-  [DOMAIN_EVENTS_PATTERN.ON_DRAW]: OnDraw;
-  [DOMAIN_EVENTS_PATTERN.ON_CHECKMATE]: OnCheckmate;
   [DOMAIN_EVENTS_PATTERN.ON_MATCH_START]: OnMatchStart;
-  [DOMAIN_EVENTS_PATTERN.ON_MATCH_RESTART]: OnMatchStart;
   [DOMAIN_EVENTS_PATTERN.ON_OPPONENT_DISCONNECTION]: OnOpponentDisconnection;
 };
