@@ -4,11 +4,14 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import {
   TokenService,
   TokenType,
-  PlayerSocketData,
   InconsistentTokenInfoError,
   ValidationTokenMissingError,
+  BaseSocket,
+  COOKIE_NAMES,
+  DecodedAccessToken,
+  DecodedSessionToken,
 } from '@app/common';
-import { ExtendedError, Server, ServerOptions, Socket } from 'socket.io';
+import { ExtendedError, Server, ServerOptions } from 'socket.io';
 import * as cookie from 'cookie';
 import { corsOptions } from './configCors';
 
@@ -21,39 +24,38 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
   }
 
   validateBeforeConnection = async (
-    socket: Socket,
+    socket: BaseSocket,
     next: (error?: ExtendedError) => void,
-  ) => {
+  ): Promise<void> => {
     try {
-      const accessToken =
-        socket.handshake.auth.accessToken || socket.handshake.query.accessToken;
-      const sessionToken = cookie.parse(socket.handshake.headers.cookie || '')[
-        'sessionToken'
-      ];
+      const accessToken: string =
+        socket.handshake.auth[COOKIE_NAMES.ACCESS_TOKEN] ||
+        socket.handshake.query[COOKIE_NAMES.ACCESS_TOKEN];
+      const sessionToken: string | undefined = cookie.parse(
+        socket.handshake.headers.cookie || '',
+      )[COOKIE_NAMES.SESSION_TOKEN];
 
       if (!accessToken || !sessionToken)
         throw new ValidationTokenMissingError(
           'Access token or session token or both are missing',
         );
 
-      const decodedAccessToken = await this.tokenService.validateToken(
+      const decodedAccessToken: DecodedAccessToken = await this.tokenService.validateToken(
         accessToken,
         TokenType.ACCESS,
       );
-      const decodedSessionToken = await this.tokenService.validateToken(
+
+      const decodedSessionToken: DecodedSessionToken = await this.tokenService.validateToken(
         sessionToken,
         TokenType.SESSION,
       );
 
-      if (decodedAccessToken.id !== decodedSessionToken.id)
+      if (decodedAccessToken.playerID !== decodedSessionToken.playerID)
         throw new InconsistentTokenInfoError('Decoded token info conflict');
 
-      const playerData: PlayerSocketData = {
-        ID: decodedAccessToken.id,
-        nickname: decodedAccessToken.nickname,
+      socket.data = {
+        playerID: decodedAccessToken.playerID,
       };
-
-      socket.data = playerData;
 
       return next();
     } catch (error) {
@@ -61,7 +63,7 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
     }
   };
 
-  createIOServer(port: number, options?: ServerOptions) {
+  createIOServer(port: number, options?: ServerOptions): Server {
     const server: Server = super.createIOServer(port, {
       ...options,
       corsOptions,

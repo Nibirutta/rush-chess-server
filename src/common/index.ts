@@ -33,7 +33,6 @@ export * from './filters/ws-domain-exception.filter';
 
 // Interfaces
 export * from './interfaces/decoded-token.interface';
-export * from './interfaces/socket-data.interface';
 
 // Config
 export * from './config/chess-config.module';
@@ -53,4 +52,4 @@ export * from './token/token.service';
 
 // Types
 export * from './types/draw.types';
-export * from './types/custom-socket.types';
+export * from './types/socket.types';
