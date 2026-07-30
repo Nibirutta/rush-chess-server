@@ -35,8 +35,17 @@ export * from './filters/ws-domain-exception.filter';
 export * from './interfaces/decoded-token.interface';
 export * from './interfaces/socket-data.interface';
 
+// Config
+export * from './config/chess-config.module';
+export * from './config/chess-config.service';
+
+// Redis
+export * from './redis/abstract-redis.repository';
+export * from './redis/redis.module';
+
 // Options
 export * from './options/validation.options';
+export * from './options/cookie.options';
 
 // Tokens
 export * from './token/token.module';
@@ -44,3 +53,4 @@ export * from './token/token.service';
 
 // Types
 export * from './types/draw.types';
+export * from './types/custom-socket.types';

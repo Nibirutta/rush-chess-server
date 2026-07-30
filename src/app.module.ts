@@ -3,18 +3,29 @@ import {
   DatabaseModule,
   TokenModule,
   DomainEventEmitterModule,
+  ChessConfigService,
+  DomainRedisModule,
+  ChessConfigModule,
 } from '@app/common';
 import { GameModule } from './game/game.module';
 import { PlayerModule } from './player/player.module';
-import { DomainRedisModule } from './common/redis/domain-redis.module';
-import { ChessConfigModule } from './common/config/chess-config.module';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
+    BullModule.forRootAsync({
+      inject: [ChessConfigService],
+      useFactory: (chessConfigService: ChessConfigService) => ({
+        connection: {
+          host: chessConfigService.getRedisHost(),
+          port: chessConfigService.getRedisPort(),
+        },
+      }),
+    }),
     ChessConfigModule,
-    DomainRedisModule,
     DomainEventEmitterModule,
     DatabaseModule,
+    DomainRedisModule,
     GameModule,
     PlayerModule,
     TokenModule,
