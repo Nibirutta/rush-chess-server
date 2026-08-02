@@ -1,3 +1,4 @@
+import { COOKIE_NAMES } from '@app/common';
 import {
   CanActivate,
   Injectable,
@@ -12,9 +13,9 @@ export class SessionGuard implements CanActivate {
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
-
-    const sessionToken = request.cookies?.sessionToken as string;
+    const request: Request = context.switchToHttp().getRequest<Request>();
+    const cookies: Record<string, any> = request.cookies;
+    const sessionToken: unknown = cookies[COOKIE_NAMES.SESSION_TOKEN];
 
     if (!sessionToken) {
       throw new UnauthorizedException('Session Token Missing');

@@ -6,7 +6,12 @@ import {
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { Observable, map } from 'rxjs';
-import { TokenType, TokenService } from '@app/common';
+import {
+  TokenType,
+  TokenService,
+  DomainCookieOptions,
+  COOKIE_NAMES,
+} from '@app/common';
 
 @Injectable()
 export class LogoutInterceptor implements NestInterceptor {
@@ -16,23 +21,23 @@ export class LogoutInterceptor implements NestInterceptor {
     context: ExecutionContext,
     next: CallHandler,
   ): Promise<Observable<any>> {
-    const request: Request = context.switchToHttp().getRequest();
-    const response: Response = context.switchToHttp().getResponse();
+    const request: Request = context.switchToHttp().getRequest<Request>();
+    const response: Response = context.switchToHttp().getResponse<Response>();
+    const cookies: Record<string, any> = request.cookies;
+    const sessionToken: unknown = cookies[COOKIE_NAMES.SESSION_TOKEN];
 
-    const sessionToken = request.cookies?.sessionToken as string;
-
-    if (sessionToken) {
+    if (typeof sessionToken === 'string') {
       await this.tokenService.deleteToken(sessionToken);
     }
 
     return next.handle().pipe(
       map((data: unknown) => {
-        response.clearCookie('sessionToken', {
-          secure: true,
-          httpOnly: true,
-          maxAge: this.tokenService.getTokenMaxAge(TokenType.SESSION),
-          sameSite: 'none',
-        });
+        response.clearCookie(
+          COOKIE_NAMES.SESSION_TOKEN,
+          DomainCookieOptions(
+            this.tokenService.getTokenMaxAge(TokenType.SESSION),
+          ),
+        );
 
         return data;
       }),

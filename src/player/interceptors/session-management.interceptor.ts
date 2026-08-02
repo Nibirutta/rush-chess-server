@@ -6,7 +6,16 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { Observable, map } from 'rxjs';
-import { TokenService, TokenType } from '@app/common';
+import {
+  COOKIE_NAMES,
+  DomainCookieOptions,
+  TokenService,
+  TokenType,
+} from '@app/common';
+
+type DataType = {
+  [COOKIE_NAMES.SESSION_TOKEN]: string;
+} & Record<string, unknown>;
 
 @Injectable()
 export class SessionManagementInterceptor implements NestInterceptor {
@@ -16,29 +25,29 @@ export class SessionManagementInterceptor implements NestInterceptor {
     context: ExecutionContext,
     next: CallHandler,
   ): Observable<any> | Promise<Observable<any>> {
-    const response: Response = context.switchToHttp().getResponse();
+    const response: Response = context.switchToHttp().getResponse<Response>();
 
     return next.handle().pipe(
-      map((data: unknown) => {
-        if (data && typeof data === 'object' && 'sessionToken' in data) {
-          response.clearCookie('sessionToken', {
-            secure: true,
-            httpOnly: true,
-            maxAge: this.tokenService.getTokenMaxAge(TokenType.SESSION),
-            sameSite: 'none',
-          });
+      map((data: DataType | undefined) => {
+        if (data) {
+          const { [COOKIE_NAMES.SESSION_TOKEN]: removedToken, ...rest } = data;
 
-          response.cookie('sessionToken', data.sessionToken, {
-            secure: true,
-            httpOnly: true,
-            maxAge: this.tokenService.getTokenMaxAge(TokenType.SESSION),
-            sameSite: 'none',
-          });
+          response.clearCookie(
+            COOKIE_NAMES.SESSION_TOKEN,
+            DomainCookieOptions(
+              this.tokenService.getTokenMaxAge(TokenType.SESSION),
+            ),
+          );
 
-          const payload = data;
-          delete payload.sessionToken;
+          response.cookie(
+            COOKIE_NAMES.SESSION_TOKEN,
+            removedToken,
+            DomainCookieOptions(
+              this.tokenService.getTokenMaxAge(TokenType.SESSION),
+            ),
+          );
 
-          return payload;
+          return rest;
         }
 
         return data;
