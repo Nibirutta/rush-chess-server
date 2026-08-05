@@ -23,9 +23,9 @@ export abstract class RedisRepository<T extends Record<string, any>> {
   }
 
   async findAll(): Promise<T[] | undefined> {
-    const ids = await this.redisClient.zRange(this.indexKey, 0, -1);
+    const ids = await this.redisClient.sMembers(this.indexKey);
 
-    if (!ids) return undefined;
+    if (ids.length === 0) return undefined;
 
     const pipeline = this.redisClient.multi();
     ids.forEach((id) => {
@@ -36,13 +36,13 @@ export abstract class RedisRepository<T extends Record<string, any>> {
     return result as unknown as T[];
   }
 
-  async save(id: string, data: T, ttlSeconds: number): Promise<void> {
+  async save(id: string, data: T): Promise<void> {
     const hashKey = this.getHashKey(id);
-    const expirationTime = Date.now() + ttlSeconds * 1000;
-
     const pipeline = this.redisClient.multi();
-    pipeline.json.set(hashKey, '$', data).expire(hashKey, ttlSeconds);
-    pipeline.zAdd(this.indexKey, { value: id, score: expirationTime });
+
+    pipeline.json.set(hashKey, '$', data);
+    pipeline.sAdd(this.indexKey, id);
+
     await pipeline.exec();
   }
 
@@ -62,13 +62,7 @@ export abstract class RedisRepository<T extends Record<string, any>> {
 
     const pipeline = this.redisClient.multi();
     pipeline.json.del(hashKey);
-    pipeline.zRem(this.indexKey, id);
+    pipeline.sRem(this.indexKey, id);
     await pipeline.exec();
-  }
-
-  async removeExpiredEntries(): Promise<void> {
-    const currentDate = Date.now();
-
-    await this.redisClient.zRemRangeByScore(this.indexKey, '-inf', currentDate);
   }
 }
