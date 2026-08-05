@@ -40,15 +40,11 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
           'Access token or session token or both are missing',
         );
 
-      const decodedAccessToken: DecodedAccessToken = await this.tokenService.validateToken(
-        accessToken,
-        TokenType.ACCESS,
-      );
+      const decodedAccessToken: DecodedAccessToken =
+        await this.tokenService.validateToken(accessToken, TokenType.ACCESS);
 
-      const decodedSessionToken: DecodedSessionToken = await this.tokenService.validateToken(
-        sessionToken,
-        TokenType.SESSION,
-      );
+      const decodedSessionToken: DecodedSessionToken =
+        await this.tokenService.validateToken(sessionToken, TokenType.SESSION);
 
       if (decodedAccessToken.playerID !== decodedSessionToken.playerID)
         throw new InconsistentTokenInfoError('Decoded token info conflict');
