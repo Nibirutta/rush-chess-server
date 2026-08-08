@@ -18,7 +18,13 @@ import { SessionManagementInterceptor } from './interceptors/session-management.
 import { SessionGuard } from './guards/session.guard';
 import { Request } from 'express';
 import { LogoutInterceptor } from './interceptors/logout.interceptor';
-import { HttpDomainExceptionFilter, ValidationOptions } from '@app/common';
+import {
+  COOKIE_NAMES,
+  HttpDomainExceptionFilter,
+  ValidationOptions,
+} from '@app/common';
+import { LoggedInGuard } from './guards/logged-in.guard';
+import { LoggedPlayer } from './types/player.types';
 
 @Controller('player')
 @UsePipes(new ValidationPipe(ValidationOptions))
@@ -26,29 +32,37 @@ import { HttpDomainExceptionFilter, ValidationOptions } from '@app/common';
 export class PlayerController {
   constructor(private readonly playerService: PlayerService) {}
 
+  @UseGuards(LoggedInGuard)
   @UseInterceptors(SessionManagementInterceptor)
   @Post('login')
-  login(@Body() loginPlayerDTO: LoginPlayerDTO) {
-    return this.playerService.login(loginPlayerDTO);
+  login(@Body() loginPlayerDTO: LoginPlayerDTO): Promise<LoggedPlayer> {
+    const { username, password } = loginPlayerDTO;
+
+    return this.playerService.login(username, password);
   }
 
   @UseInterceptors(SessionManagementInterceptor)
   @Post('register')
-  registerPlayer(@Body() createPlayerDTO: CreatePlayerDTO) {
-    return this.playerService.createPlayer(createPlayerDTO);
+  registerPlayer(
+    @Body() createPlayerDTO: CreatePlayerDTO,
+  ): Promise<LoggedPlayer> {
+    const { username, nickname, password } = createPlayerDTO;
+
+    return this.playerService.createPlayer(username, nickname, password);
   }
 
   @UseGuards(SessionGuard)
   @UseInterceptors(SessionManagementInterceptor)
   @Get('refresh')
-  refreshSession(@Req() req: Request) {
-    const sessionToken = req.cookies.sessionToken as string;
+  refreshSession(@Req() req: Request): Promise<LoggedPlayer> | void {
+    const sessionToken: unknown = req.cookies[COOKIE_NAMES.SESSION_TOKEN];
 
-    return this.playerService.refreshSession(sessionToken);
+    if (typeof sessionToken === 'string')
+      return this.playerService.refreshSession(sessionToken);
   }
 
   @UseInterceptors(LogoutInterceptor)
   @HttpCode(HttpStatus.NO_CONTENT)
   @Get('logout')
-  logout() {}
+  logout(): void {}
 }

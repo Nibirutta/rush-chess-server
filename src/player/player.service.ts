@@ -1,20 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from 'src/generated/prisma/client';
+import { Prisma, Player } from 'src/generated/prisma/client';
 import { omit } from 'lodash';
-import {
-  CreatePlayerDTO,
-  UpdatePlayerDTO,
-  LoginPlayerDTO,
-} from './contracts/player.dto';
 import * as bcrypt from 'bcrypt';
 import {
-  InvalidPasswordError,
-  InvalidUsernameError,
+  InvalidCredentialsError,
   PlayerNotFoundError,
   TokenService,
   TokenType,
   DatabaseService,
+  COOKIE_NAMES,
+  PlayerConflictError,
 } from '@app/common';
+import { LoggedPlayer } from './types/player.types';
 
 @Injectable()
 export class PlayerService {
@@ -23,115 +20,174 @@ export class PlayerService {
     private readonly tokenService: TokenService,
   ) {}
 
-  async login(loginPlayerDTO: LoginPlayerDTO) {
+  async login(username: string, password: string): Promise<LoggedPlayer> {
     const foundPlayer = await this.databaseService.player.findUnique({
-      where: { username: loginPlayerDTO.username },
+      where: { username: username },
     });
 
-    if (!foundPlayer) {
-      throw new InvalidUsernameError('Username or password is invalid');
-    }
+    if (!foundPlayer)
+      throw new InvalidCredentialsError('Username or password is invalid');
 
-    const isValidPassword = await bcrypt.compare(
-      loginPlayerDTO.password,
+    const isPasswordCorrect = await bcrypt.compare(
+      password,
       foundPlayer.hashedPassword,
     );
 
-    if (!isValidPassword) {
-      throw new InvalidPasswordError('Username or password is invalid');
-    }
+    if (!isPasswordCorrect)
+      throw new InvalidCredentialsError('Username or password is invalid');
 
-    const { accessToken, sessionToken } =
-      await this.tokenService.generateSessionTokens(
-        foundPlayer.id,
-        foundPlayer.nickname,
-      );
+    const accessToken = await this.tokenService.generateToken(
+      {
+        playerID: foundPlayer.id,
+        playerNickname: foundPlayer.nickname,
+      },
+      TokenType.ACCESS,
+    );
+
+    const sessionToken = await this.tokenService.generateToken(
+      {
+        playerID: foundPlayer.id,
+      },
+      TokenType.SESSION,
+    );
 
     return {
-      player: omit(foundPlayer, ['hashedPassword']),
-      accessToken,
-      sessionToken,
+      profile: omit(foundPlayer, ['hashedPassword']),
+      [COOKIE_NAMES.ACCESS_TOKEN]: accessToken,
+      [COOKIE_NAMES.SESSION_TOKEN]: sessionToken,
     };
   }
 
-  async refreshSession(cookie: string) {
+  async refreshSession(cookie: string): Promise<LoggedPlayer> {
     const decodedToken = await this.tokenService.validateToken(
       cookie,
       TokenType.SESSION,
     );
+
     const foundPlayer = await this.databaseService.player.findUnique({
-      where: { id: decodedToken.id },
+      where: { id: decodedToken.playerID },
     });
 
     if (!foundPlayer)
       throw new PlayerNotFoundError('Player does not exist anymore');
 
-    await this.tokenService.deleteToken(cookie); // Always returns a valid value
+    this.tokenService.deleteToken(cookie).catch((error) => {
+      console.log(error);
+    });
 
-    const { accessToken, sessionToken } =
-      await this.tokenService.generateSessionTokens(
-        foundPlayer.id,
-        foundPlayer.nickname,
-      );
+    const accessToken = await this.tokenService.generateToken(
+      {
+        playerID: foundPlayer.id,
+        playerNickname: foundPlayer.nickname,
+      },
+      TokenType.ACCESS,
+    );
+
+    const sessionToken = await this.tokenService.generateToken(
+      {
+        playerID: foundPlayer.id,
+      },
+      TokenType.SESSION,
+    );
 
     return {
-      player: omit(foundPlayer, ['hashedPassword']),
-      accessToken,
-      sessionToken,
+      profile: omit(foundPlayer, ['hashedPassword']),
+      [COOKIE_NAMES.ACCESS_TOKEN]: accessToken,
+      [COOKIE_NAMES.SESSION_TOKEN]: sessionToken,
     };
   }
 
-  async createPlayer(createPlayerDTO: CreatePlayerDTO) {
-    const hashedPassword = await bcrypt.hash(createPlayerDTO.password, 10);
+  async createPlayer(
+    username: string,
+    nickname: string,
+    password: string,
+  ): Promise<LoggedPlayer> {
+    const hasDuplicateCredentials = await this.databaseService.player.findMany({
+      where: { OR: [{ nickname: nickname }, { username: username }] },
+    });
 
-    const playerData: Prisma.PlayerCreateInput = {
-      ...omit(createPlayerDTO, ['password']),
+    if (hasDuplicateCredentials)
+      throw new PlayerConflictError('Username or nickname unavailable');
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const playerCreateInput: Prisma.PlayerCreateInput = {
+      username,
+      nickname,
       hashedPassword,
     };
 
     const createdPlayer = await this.databaseService.player.create({
-      data: playerData,
+      data: playerCreateInput,
     });
 
-    const { accessToken, sessionToken } =
-      await this.tokenService.generateSessionTokens(
-        createdPlayer.id,
-        createdPlayer.nickname,
-      );
+    const accessToken = await this.tokenService.generateToken(
+      {
+        playerID: createdPlayer.id,
+        playerNickname: createdPlayer.nickname,
+      },
+      TokenType.ACCESS,
+    );
+
+    const sessionToken = await this.tokenService.generateToken(
+      {
+        playerID: createdPlayer.id,
+      },
+      TokenType.SESSION,
+    );
 
     return {
-      player: omit(createdPlayer, ['hashedPassword']),
-      accessToken,
-      sessionToken,
+      profile: omit(createdPlayer, ['hashedPassword']),
+      [COOKIE_NAMES.ACCESS_TOKEN]: accessToken,
+      [COOKIE_NAMES.SESSION_TOKEN]: sessionToken,
     };
   }
 
-  async updatePlayer(id: string, updatePlayerDTO: UpdatePlayerDTO) {
-    const playerData: Prisma.PlayerUpdateInput = {
-      ...omit(updatePlayerDTO, ['password']),
-      hashedPassword: updatePlayerDTO.password
-        ? await bcrypt.hash(updatePlayerDTO.password, 10)
-        : undefined,
+  async updatePlayer(
+    id: string,
+    nickname?: string,
+    password?: string,
+  ): Promise<LoggedPlayer> {
+    const hasDuplicatedNickname = await this.databaseService.player.findUnique({
+      where: { nickname: nickname },
+    });
+
+    if (hasDuplicatedNickname)
+      throw new PlayerConflictError('Nickname unavailable');
+
+    const playerUpdateInput: Prisma.PlayerUpdateInput = {
+      nickname,
+      hashedPassword: password ? await bcrypt.hash(password, 10) : undefined,
     };
 
     const updatedPlayer = await this.databaseService.player.update({
-      data: playerData,
+      data: playerUpdateInput,
       where: { id: id },
     });
-    const { accessToken, sessionToken } =
-      await this.tokenService.generateSessionTokens(
-        updatedPlayer.id,
-        updatedPlayer.nickname,
-      );
+
+    const accessToken = await this.tokenService.generateToken(
+      {
+        playerID: updatedPlayer.id,
+        playerNickname: updatedPlayer.nickname,
+      },
+      TokenType.ACCESS,
+    );
+
+    const sessionToken = await this.tokenService.generateToken(
+      {
+        playerID: updatedPlayer.id,
+      },
+      TokenType.SESSION,
+    );
 
     return {
-      player: omit(updatedPlayer, ['hashedPassword']),
-      accessToken,
-      sessionToken,
+      profile: omit(updatedPlayer, ['hashedPassword']),
+      [COOKIE_NAMES.ACCESS_TOKEN]: accessToken,
+      [COOKIE_NAMES.SESSION_TOKEN]: sessionToken,
     };
   }
 
-  async deletePlayer(id: string) {
+  async deletePlayer(id: string): Promise<Player> {
     return this.databaseService.player.delete({ where: { id: id } });
   }
 }

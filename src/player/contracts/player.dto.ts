@@ -27,4 +27,6 @@ export class CreatePlayerDTO {
 
 export class LoginPlayerDTO extends OmitType(CreatePlayerDTO, ['nickname']) {}
 
-export class UpdatePlayerDTO extends PartialType(CreatePlayerDTO) {}
+export class UpdatePlayerDTO extends PartialType(
+  OmitType(CreatePlayerDTO, ['username']),
+) {}
