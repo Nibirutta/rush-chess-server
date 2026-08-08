@@ -10,6 +10,7 @@ import {
 import { GameModule } from './game/game.module';
 import { PlayerModule } from './player/player.module';
 import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { BullModule } from '@nestjs/bullmq';
         },
       }),
     }),
+    ScheduleModule.forRoot(),
     ChessConfigModule,
     DomainEventEmitterModule,
     DatabaseModule,

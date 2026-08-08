@@ -22,10 +22,10 @@ export abstract class RedisRepository<T extends Record<string, any>> {
     return data as T;
   }
 
-  async findAll(): Promise<T[] | undefined> {
+  async findAll(): Promise<T[]> {
     const ids = await this.redisClient.sMembers(this.indexKey);
 
-    if (ids.length === 0) return undefined;
+    if (ids.length === 0) return [];
 
     const pipeline = this.redisClient.multi();
     ids.forEach((id) => {

@@ -139,7 +139,7 @@ export class TokenService {
       });
 
       if (!foundToken) {
-        void this.protectPlayerFromTokenReplayAttack(token, tokenType);
+        await this.protectPlayerFromTokenReplayAttack(token, tokenType);
 
         throw new FailedTokenValidationError('Invalid token');
       }
