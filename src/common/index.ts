@@ -1,8 +1,9 @@
 // Contracts
 export * from './contracts/token.dto';
 
-// Messages
-export * from './messages/messages.pattern';
+// Websocket
+export * from './websocket/messages.pattern';
+export * from './websocket/events.pattern';
 
 // Enums
 export * from './enums/player-status.enum';
