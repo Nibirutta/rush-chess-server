@@ -1,52 +1,74 @@
 import { Injectable } from '@nestjs/common';
 import {
   DatabaseService,
-  PlayerSocketData,
   PlayerStatus,
   InvalidOpponentError,
   PlayerIsOfflineError,
-  SessionNotFoundError,
+  InviteNotFoundError,
   DomainEventEmitterService,
   DOMAIN_EVENTS_PATTERN,
 } from '@app/common';
 import { Prisma } from 'src/generated/prisma/client';
-import { SendMessageDTO, PaginationPropertiesDTO } from '../dto/message.dto';
 import { randomUUID } from 'crypto';
 import { InviteSession, InviteTicket } from '../interfaces/invite.interface';
-import { PlayerLobbyData } from '../interfaces/player-lobby-data.interface';
-import { PlayerID, WaitRoomID } from '../types/game.types';
+import { InjectQueue } from '@nestjs/bullmq';
+import { LOBBY_QUEUES } from '../queues/game-queues.constants';
+import { Queue } from 'bullmq';
+import { PlayerRepository } from './player.repository';
+import { OnlinePlayerData } from '../interfaces/player.interface';
 
 @Injectable()
 export class LobbyService {
-  private onlinePlayers: Map<PlayerID, PlayerLobbyData> = new Map();
-  private inviteMapping: Map<WaitRoomID, InviteSession> = new Map();
-
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly domainEventEmitter: DomainEventEmitterService,
+    @InjectQueue(LOBBY_QUEUES)
+    private readonly lobbyQueues: Queue<InviteSession>,
+    private readonly playerRepository: PlayerRepository,
   ) {}
 
-  playerConnected(playerSocketData: PlayerSocketData, socketID: string) {
-    this.onlinePlayers.set(playerSocketData.ID, {
-      ID: playerSocketData.ID,
-      nickname: playerSocketData.nickname,
-      socketID: socketID,
+  // Connection
+
+  async playerConnected(playerID: string, socketID: string): Promise<void> {
+    const retrievedPlayer = await this.databaseService.player.findUnique({
+      where: { id: playerID },
+    });
+
+    if (!retrievedPlayer) return;
+
+    const { nickname } = retrievedPlayer;
+
+    await this.playerRepository.save(playerID, {
+      playerID,
+      socketID,
+      nickname,
       status: PlayerStatus.Ready,
     });
   }
 
-  playerDisconnected(playerSocketData: PlayerSocketData) {
-    this.onlinePlayers.delete(playerSocketData.ID);
+  async playerDisconnected(playerID: string): Promise<void> {
+    await this.playerRepository.delete(playerID);
   }
 
-  getOnlinePlayers(): Array<PlayerLobbyData> {
-    return Array.from(this.onlinePlayers.values());
+  async getOnlinePlayers(): Promise<OnlinePlayerData[]> {
+    const onlinePlayers = await this.playerRepository.findAll();
+
+    return onlinePlayers;
   }
 
-  async getMessages(paginationPropertiesDTO: PaginationPropertiesDTO) {
+  // Messages
+
+  private formatMessage(message: string, nickname: string): string {
+    // eslint-disable-next-line
+    const messageContent = `[${nickname}] - ${message.replaceAll(/[\[\]]/g, '')}`;
+
+    return messageContent;
+  }
+
+  async getMessages(skip: number, amount: number): Promise<string[]> {
     const messages = await this.databaseService.message.findMany({
-      skip: paginationPropertiesDTO.skip,
-      take: paginationPropertiesDTO.amount,
+      skip: skip,
+      take: amount,
       orderBy: {
         createdAt: 'desc',
       },
@@ -56,14 +78,16 @@ export class LobbyService {
   }
 
   async createMessage(
-    sendMessageDTO: SendMessageDTO,
+    content: string,
     playerID: string,
-    nickname: string,
-  ) {
-    const formattedMessage = this.formatMessage(
-      sendMessageDTO.content,
-      nickname,
-    );
+  ): Promise<string | undefined> {
+    const retrievedPlayer = await this.playerRepository.get(playerID);
+
+    if (!retrievedPlayer) return;
+
+    const { nickname } = retrievedPlayer;
+
+    const formattedMessage = this.formatMessage(content, nickname);
     const messageData: Prisma.MessageCreateInput = {
       content: formattedMessage,
       player: {
@@ -73,69 +97,107 @@ export class LobbyService {
       },
     };
 
-    return this.databaseService.message.create({ data: messageData });
+    this.databaseService.message
+      .create({ data: messageData })
+      .catch((error) => {
+        console.log(error);
+      });
+
+    return formattedMessage;
   }
 
-  private formatMessage(message: string, nickname: string) {
-    // eslint-disable-next-line
-    const messageContent: string = `[${nickname}] - ${message.replaceAll(/[\[\]]/g, '')}`;
+  // Invite
 
-    return messageContent;
-  }
-
-  invite(challengerID: string, opponentID: string) {
+  async invite(
+    challengerID: string,
+    opponentID: string,
+  ): Promise<InviteTicket | undefined> {
     const inviteExpirationTimeInMS = 15000;
-    const foundOpponent = this.onlinePlayers.get(opponentID);
+    const retrievedOpponent = await this.playerRepository.get(opponentID);
+    const retrievedPlayer = await this.playerRepository.get(challengerID);
 
-    if (!foundOpponent) throw new PlayerIsOfflineError('Opponent is offline');
+    if (!retrievedPlayer) return;
+    if (!retrievedOpponent)
+      throw new PlayerIsOfflineError('Opponent is offline');
     if (
       challengerID === opponentID ||
-      foundOpponent.status !== PlayerStatus.Ready
+      retrievedOpponent.status !== PlayerStatus.Ready
     )
       throw new InvalidOpponentError('Opponent is not ready or ID is invalid');
 
-    const waitRoomID = randomUUID().toString();
-    const inviteExpirationTimeout = setTimeout(() => {
-      this.changePlayerStatus(challengerID, PlayerStatus.Ready);
-      this.changePlayerStatus(opponentID, PlayerStatus.Ready);
+    const inviteID = randomUUID().toString();
 
-      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_INVITE_EXPIRED, {
-        waitRoomID: waitRoomID,
-      });
-    }, inviteExpirationTimeInMS);
+    await this.lobbyQueues.add(
+      'expire-invite',
+      {
+        inviteID,
+        challengerID,
+        opponentID,
+      },
+      {
+        jobId: inviteID,
+        delay: inviteExpirationTimeInMS,
+        removeOnComplete: true,
+      },
+    );
 
-    this.inviteMapping.set(waitRoomID, {
-      timeout: inviteExpirationTimeout,
-      challengerID: challengerID,
-      opponentID: opponentID,
-    });
-
-    this.changePlayerStatus(challengerID, PlayerStatus.Awaiting);
-    this.changePlayerStatus(opponentID, PlayerStatus.Awaiting);
+    await this.changePlayerStatus(challengerID, PlayerStatus.Awaiting);
+    await this.changePlayerStatus(opponentID, PlayerStatus.Awaiting);
 
     const inviteTicket: InviteTicket = {
-      waitRoomID: waitRoomID,
-      opponentSocketID: foundOpponent.socketID,
+      inviteID: inviteID,
+      challengerNickname: retrievedPlayer.nickname,
+      opponentSocketID: retrievedOpponent.socketID,
     };
 
     return inviteTicket;
   }
 
-  isPlayerReady(playerID: string, ready: boolean) {
-    if (ready) {
-      this.changePlayerStatus(playerID, PlayerStatus.Ready);
+  async resolveInvite(inviteID: string, accepted: boolean): Promise<void> {
+    const foundInvite = await this.lobbyQueues.getJob(inviteID);
+
+    if (!foundInvite) {
+      throw new InviteNotFoundError('Invite not found');
+    }
+
+    const { challengerID, opponentID } = foundInvite.data;
+
+    await foundInvite.remove();
+
+    if (accepted) {
+      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_MATCH_ACCEPTED, {
+        matchID: inviteID,
+        challengerID,
+        opponentID,
+      });
+
+      await this.changePlayerStatus(challengerID, PlayerStatus.On_Battle);
+      await this.changePlayerStatus(opponentID, PlayerStatus.On_Battle);
     } else {
-      this.changePlayerStatus(playerID, PlayerStatus.Not_Ready);
+      await this.changePlayerStatus(challengerID, PlayerStatus.Ready);
+      await this.changePlayerStatus(opponentID, PlayerStatus.Ready);
     }
   }
 
-  changePlayerStatus(playerID: string, status: PlayerStatus) {
-    const foundPlayer = this.onlinePlayers.get(playerID);
+  // Player
+
+  async isPlayerReady(playerID: string, ready: boolean): Promise<void> {
+    if (ready) {
+      await this.changePlayerStatus(playerID, PlayerStatus.Ready);
+    } else {
+      await this.changePlayerStatus(playerID, PlayerStatus.Not_Ready);
+    }
+  }
+
+  async changePlayerStatus(
+    playerID: string,
+    status: PlayerStatus,
+  ): Promise<void> {
+    const foundPlayer = await this.playerRepository.get(playerID);
 
     if (!foundPlayer) return;
-    if (foundPlayer.status === status) return;
 
-    foundPlayer.status = status;
+    await this.playerRepository.update(playerID, { status: status });
 
     this.domainEventEmitter.emit(
       DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED,
@@ -144,34 +206,5 @@ export class LobbyService {
         status: status,
       },
     );
-  }
-
-  resolveInvite(waitRoomID: string, accepted: boolean) {
-    const inviteSession = this.inviteMapping.get(waitRoomID);
-
-    if (!inviteSession) {
-      throw new SessionNotFoundError('Invite session not found');
-    }
-
-    clearTimeout(inviteSession.timeout);
-
-    if (accepted) {
-      this.domainEventEmitter.emit(DOMAIN_EVENTS_PATTERN.ON_MATCH_ACCEPTED, {
-        matchID: waitRoomID,
-        challengerID: inviteSession.challengerID,
-        opponentID: inviteSession.opponentID,
-      });
-
-      this.changePlayerStatus(
-        inviteSession.challengerID,
-        PlayerStatus.On_Battle,
-      );
-      this.changePlayerStatus(inviteSession.opponentID, PlayerStatus.On_Battle);
-    } else {
-      this.changePlayerStatus(inviteSession.challengerID, PlayerStatus.Ready);
-      this.changePlayerStatus(inviteSession.opponentID, PlayerStatus.Ready);
-    }
-
-    this.inviteMapping.delete(waitRoomID);
   }
 }

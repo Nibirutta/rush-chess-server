@@ -17,7 +17,11 @@ export class LobbyController {
   constructor(private readonly lobbyService: LobbyService) {}
 
   @Get('messages')
-  async getMessages(@Body() paginationPropertiesDTO: PaginationPropertiesDTO) {
-    return this.lobbyService.getMessages(paginationPropertiesDTO);
+  async getMessages(
+    @Body() paginationPropertiesDTO: PaginationPropertiesDTO,
+  ): Promise<string[]> {
+    const { skip, amount } = paginationPropertiesDTO;
+
+    return this.lobbyService.getMessages(skip, amount);
   }
 }

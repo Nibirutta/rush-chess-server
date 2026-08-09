@@ -10,20 +10,20 @@ import {
 import { ValidationPipe, UsePipes, UseFilters } from '@nestjs/common';
 import {
   ValidationOptions,
-  PlayerSocketData,
   WsDomainExceptionFilter,
   OnDomainEvents,
   OnInviteExpired,
-  OnMatchTerminated,
   OnPlayerStatusChanged,
   DOMAIN_EVENTS_PATTERN,
   PlayerStatus,
-  INCOMING_MESSAGES,
-  OUTGOING_MESSAGES,
+  LOBBY_EVENTS,
+  LOBBY_MESSAGES,
+  OnFinishedMatch,
+  BaseSocket,
 } from '@app/common';
-import { Socket, Server } from 'socket.io';
+import { Server } from 'socket.io';
 import { LobbyService } from './lobby.service';
-import { SendMessageDTO, IsTypingDTO } from '../dto/message.dto';
+import { SendMessageDTO } from '../dto/message.dto';
 import { InviteResponseDTO, SendInviteDTO } from '../dto/invite.dto';
 import { IsPlayerReadyDTO } from '../dto/lobby.dto';
 
@@ -38,136 +38,137 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(private readonly lobbyService: LobbyService) {}
 
-  handleConnection(client: Socket) {
-    const playerSocketData = client.data as PlayerSocketData;
-    this.lobbyService.playerConnected(playerSocketData, client.id);
-    this.broadcastOnlinePlayers();
+  // On connection events
+
+  private async broadcastOnlinePlayers(): Promise<void> {
+    const playersOnline = await this.lobbyService.getOnlinePlayers();
+
+    this.server.emit(LOBBY_EVENTS.ONLINE_PLAYERS, playersOnline);
   }
 
-  handleDisconnect(client: Socket) {
-    const playerSocketData = client.data as PlayerSocketData;
-    this.lobbyService.playerDisconnected(playerSocketData);
-    this.broadcastOnlinePlayers();
+  async handleConnection(client: BaseSocket): Promise<void> {
+    const { playerID } = client.data;
+    const socketID = client.id;
+
+    await this.lobbyService.playerConnected(playerID, socketID);
+    await this.broadcastOnlinePlayers();
   }
 
-  broadcastOnlinePlayers() {
-    setTimeout(() => {
-      const playersOnline = this.lobbyService.getOnlinePlayers();
+  async handleDisconnect(client: BaseSocket): Promise<void> {
+    const { playerID } = client.data;
 
-      this.server.emit(OUTGOING_MESSAGES.NOTIFY_ONLINE_PLAYERS, playersOnline);
-    }, 50); // Added 50 miliseconds because of race conditions, must be executed only after connection
+    await this.lobbyService.playerDisconnected(playerID);
+    await this.broadcastOnlinePlayers();
   }
 
   // Messages
 
-  @SubscribeMessage(INCOMING_MESSAGES.SEND_MESSAGE)
+  @SubscribeMessage(LOBBY_MESSAGES.SEND_MESSAGE)
   async sendMessage(
     @MessageBody() sendMessageDTO: SendMessageDTO,
-    @ConnectedSocket() client: Socket,
-  ) {
-    const playerData = client.data as PlayerSocketData;
-    const createdMessage = await this.lobbyService.createMessage(
-      sendMessageDTO,
-      playerData.ID,
-      playerData.nickname,
-    );
+    @ConnectedSocket() client: BaseSocket,
+  ): Promise<void> {
+    const { content } = sendMessageDTO;
+    const { playerID } = client.data;
 
-    this.server.emit(OUTGOING_MESSAGES.NOTIFY_MESSAGE, {
-      message: createdMessage.content,
-    });
-  }
+    const newMessage = await this.lobbyService.createMessage(content, playerID);
 
-  @SubscribeMessage(INCOMING_MESSAGES.IS_PLAYER_TYPING)
-  typing(
-    @MessageBody() isTypingDTO: IsTypingDTO,
-    @ConnectedSocket() client: Socket,
-  ) {
-    const isTyping = isTypingDTO.isTyping;
-    const playerData = client.data as PlayerSocketData;
-
-    client.broadcast.emit(OUTGOING_MESSAGES.NOTIFY_TYPING, {
-      player: playerData.nickname,
-      isTyping: isTyping,
-    });
-  }
-
-  @SubscribeMessage(INCOMING_MESSAGES.SEND_INVITATION)
-  invite(
-    @MessageBody() sendInviteDTO: SendInviteDTO,
-    @ConnectedSocket() client: Socket,
-  ) {
-    const challengerData = client.data as PlayerSocketData;
-    const challengerSocketID = client.id;
-
-    const inviteTicket = this.lobbyService.invite(
-      challengerData.ID,
-      sendInviteDTO.opponentID,
-    );
-
-    this.server
-      .in([challengerSocketID, inviteTicket.opponentSocketID])
-      .socketsJoin(inviteTicket.waitRoomID);
-
-    client.to(inviteTicket.waitRoomID).emit(OUTGOING_MESSAGES.NOTIFY_INVITE, {
-      challenger: challengerData.nickname,
-      waitRoomID: inviteTicket.waitRoomID,
-    });
-  }
-
-  @SubscribeMessage(INCOMING_MESSAGES.RESPONSE_TO_INVITE)
-  acceptInvite(@MessageBody() inviteResponseDTO: InviteResponseDTO) {
-    try {
-      if (inviteResponseDTO.accepted) {
-        this.server
-          .to(inviteResponseDTO.waitRoomID)
-          .emit(OUTGOING_MESSAGES.NOTIFY_INVITE_ACCEPTED, {
-            duelRoomID: inviteResponseDTO.waitRoomID,
-          });
-      } else {
-        this.server
-          .to(inviteResponseDTO.waitRoomID)
-          .emit(OUTGOING_MESSAGES.NOTIFY_INVITE_NOT_ACCEPTED);
-      }
-
-      this.lobbyService.resolveInvite(
-        inviteResponseDTO.waitRoomID,
-        inviteResponseDTO.accepted,
-      );
-    } finally {
-      this.server.socketsLeave(inviteResponseDTO.waitRoomID);
+    if (newMessage) {
+      this.server.emit(LOBBY_MESSAGES.SEND_MESSAGE, {
+        message: newMessage,
+      });
     }
   }
 
-  @SubscribeMessage(INCOMING_MESSAGES.IS_READY)
-  isPlayerReady(@MessageBody() isPlayerReadyDTO: IsPlayerReadyDTO) {
-    this.lobbyService.isPlayerReady(
-      isPlayerReadyDTO.playerID,
-      isPlayerReadyDTO.ready,
-    );
+  // Invite
+
+  @SubscribeMessage(LOBBY_MESSAGES.SEND_INVITE)
+  async invite(
+    @MessageBody() sendInviteDTO: SendInviteDTO,
+    @ConnectedSocket() client: BaseSocket,
+  ): Promise<void> {
+    const { playerID } = client.data;
+    const socketID = client.id;
+    const { opponentID } = sendInviteDTO;
+
+    const inviteTicket = await this.lobbyService.invite(playerID, opponentID);
+
+    if (inviteTicket) {
+      const inviteRoom = inviteTicket.inviteID;
+
+      this.server
+        .to([socketID, inviteTicket.opponentSocketID])
+        .socketsJoin(inviteRoom);
+
+      client.to(inviteTicket.opponentSocketID).emit(LOBBY_EVENTS.INVITE, {
+        inviteID: inviteTicket.inviteID,
+        challenger: inviteTicket.challengerNickname,
+      });
+    }
   }
 
-  // Events
+  @SubscribeMessage(LOBBY_MESSAGES.INVITE_RESPONSE)
+  async acceptInvite(
+    @MessageBody() inviteResponseDTO: InviteResponseDTO,
+  ): Promise<void> {
+    const { inviteID, accepted } = inviteResponseDTO;
+    const inviteRoom = inviteID;
+
+    try {
+      if (accepted) {
+        this.server.in(inviteRoom).emit(LOBBY_EVENTS.INVITE_ACCEPTED, {
+          matchID: inviteID,
+        });
+      } else {
+        this.server.in(inviteRoom).emit(LOBBY_EVENTS.INVITE_NOT_ACCEPTED);
+      }
+
+      await this.lobbyService.resolveInvite(inviteID, accepted);
+    } finally {
+      this.server.socketsLeave(inviteRoom);
+    }
+  }
+
+  // Player
+
+  @SubscribeMessage(LOBBY_MESSAGES.IS_PLAYER_READY)
+  async isPlayerReady(
+    @ConnectedSocket() client: BaseSocket,
+    @MessageBody() isPlayerReadyDTO: IsPlayerReadyDTO,
+  ): Promise<void> {
+    const { playerID } = client.data;
+    const { ready } = isPlayerReadyDTO;
+
+    await this.lobbyService.isPlayerReady(playerID, ready);
+  }
+
+  // Domain Events
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_INVITE_EXPIRED)
-  inviteExpired(payload: OnInviteExpired) {
-    this.server
-      .to(payload.waitRoomID)
-      .emit(OUTGOING_MESSAGES.NOTIFY_INVITE_EXPIRED, {
-        message: 'Invite expired',
-      });
+  inviteExpired(payload: OnInviteExpired): void {
+    const inviteRoom = payload.inviteID;
 
-    this.server.socketsLeave(payload.waitRoomID);
+    this.server.to(inviteRoom).emit(LOBBY_EVENTS.INVITE_EXPIRED, {
+      message: 'Invite expired',
+    });
+
+    this.server.socketsLeave(inviteRoom);
   }
 
-  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_MATCH_TERMINATED)
-  returnToLobbyAfterMatch(payload: OnMatchTerminated) {
-    payload.playersInMatch.forEach((player) => {
-      this.lobbyService.changePlayerStatus(player, PlayerStatus.Ready);
-    });
+  @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_FINISHED_MATCH)
+  async updatePlayerStatusAfterMatch(payload: OnFinishedMatch): Promise<void> {
+    const players = payload.playerIDs;
+
+    for (let i = 0; i < players.length; i++) {
+      await this.lobbyService.changePlayerStatus(
+        players[i],
+        PlayerStatus.Ready,
+      );
+    }
   }
 
   @OnDomainEvents(DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED)
-  playerStatusChanged(payload: OnPlayerStatusChanged) {
-    this.server.emit(OUTGOING_MESSAGES.NOTIFY_PLAYER_UPDATE, payload);
+  playerStatusChanged(payload: OnPlayerStatusChanged): void {
+    this.server.emit(LOBBY_EVENTS.PLAYER_UPDATE, payload);
   }
 }
