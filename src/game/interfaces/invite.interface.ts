@@ -1,10 +1,11 @@
 export interface InviteSession {
-  timeout: NodeJS.Timeout;
+  inviteID: string;
   challengerID: string;
   opponentID: string;
 }
 
 export interface InviteTicket {
-  waitRoomID: string;
+  inviteID: string;
+  challengerNickname: string;
   opponentSocketID: string;
 }

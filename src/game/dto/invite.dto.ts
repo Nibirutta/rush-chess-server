@@ -3,7 +3,7 @@ import { IsBoolean, IsNotEmpty, IsString, IsUUID } from 'class-validator';
 export class InviteResponseDTO {
   @IsNotEmpty()
   @IsUUID()
-  waitRoomID: string;
+  inviteID: string;
 
   @IsNotEmpty()
   @IsBoolean()

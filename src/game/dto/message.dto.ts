@@ -1,6 +1,5 @@
 import {
   IsNotEmpty,
-  IsBoolean,
   MaxLength,
   IsString,
   IsOptional,
@@ -15,12 +14,6 @@ export class PaginationPropertiesDTO {
   @IsOptional()
   @IsNumber()
   skip: number = 0;
-}
-
-export class IsTypingDTO {
-  @IsNotEmpty()
-  @IsBoolean()
-  isTyping: boolean;
 }
 
 export class SendMessageDTO {
