@@ -46,7 +46,11 @@ export abstract class RedisRepository<T extends Record<string, any>> {
     await pipeline.exec();
   }
 
-  async update(id: string, data: Partial<T>): Promise<T> {
+  async update(id: string, data: Partial<T>): Promise<T | undefined> {
+    const foundData = await this.get(id);
+
+    if (!foundData) return;
+
     const hashKey = this.getHashKey(id);
     const partialData: Record<string, any> = data;
 
@@ -57,12 +61,18 @@ export abstract class RedisRepository<T extends Record<string, any>> {
     return updatedData as unknown as T;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string): Promise<T | undefined> {
+    const dataToRemove = await this.get(id);
+
+    if (!dataToRemove) return;
+
     const hashKey = this.getHashKey(id);
 
     const pipeline = this.redisClient.multi();
     pipeline.json.del(hashKey);
     pipeline.sRem(this.indexKey, id);
     await pipeline.exec();
+
+    return dataToRemove as unknown as T;
   }
 }

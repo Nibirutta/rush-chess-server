@@ -1,7 +1,10 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { LOBBY_QUEUES } from '../queues/game-queues.constants';
+import {
+  INVITE_EXPIRE_JOB,
+  INVITE_QUEUES,
+} from '../queues/game-queues.constants';
 import { Job } from 'bullmq';
-import { InviteSession } from '../interfaces/invite.interface';
+import { InviteExpirationJob } from '../queues/invite.jobs';
 import { LobbyService } from './lobby.service';
 import {
   DOMAIN_EVENTS_PATTERN,
@@ -9,8 +12,8 @@ import {
   PlayerStatus,
 } from '@app/common';
 
-@Processor(LOBBY_QUEUES)
-export class LobbyProcessor extends WorkerHost {
+@Processor(INVITE_QUEUES)
+export class InviteProcessor extends WorkerHost {
   constructor(
     private readonly lobbyService: LobbyService,
     private readonly domainEventEmitter: DomainEventEmitterService,
@@ -18,8 +21,8 @@ export class LobbyProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<InviteSession>) {
-    if (job.name === 'expire-invite') {
+  async process(job: Job<InviteExpirationJob>) {
+    if (job.name === INVITE_EXPIRE_JOB) {
       const { inviteID, challengerID, opponentID } = job.data;
 
       await this.lobbyService.changePlayerStatus(

@@ -3,17 +3,18 @@ import { LobbyGateway } from './lobby.gateway';
 import { LobbyService } from './lobby.service';
 import { LobbyController } from './lobby.controller';
 import { BullModule } from '@nestjs/bullmq';
-import { LOBBY_QUEUES } from '../queues/game-queues.constants';
+import { INVITE_QUEUES } from '../queues/game-queues.constants';
 import { PlayerRepository } from './player.repository';
+import { InviteProcessor } from './invite.processor';
 
 @Module({
   imports: [
     BullModule.registerQueue({
-      name: LOBBY_QUEUES,
+      name: INVITE_QUEUES,
     }),
   ],
   controllers: [LobbyController],
-  providers: [LobbyGateway, LobbyService, PlayerRepository],
+  providers: [LobbyGateway, LobbyService, PlayerRepository, InviteProcessor],
   exports: [],
 })
 export class LobbyModule {}

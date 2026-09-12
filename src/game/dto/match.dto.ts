@@ -3,19 +3,11 @@ import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class AvailableMovesDTO {
   @IsNotEmpty()
-  @IsString()
-  matchID: string;
-
-  @IsNotEmpty()
   @IsIn(SQUARES)
   piecePosition: Square;
 }
 
 export class MakeMoveDTO {
-  @IsNotEmpty()
-  @IsString()
-  matchID: string;
-
   @IsNotEmpty()
   @IsString()
   from: string;
@@ -27,22 +19,4 @@ export class MakeMoveDTO {
   @IsOptional()
   @IsString()
   promotion: string;
-}
-
-export class SearchMatchDTO {
-  @IsNotEmpty()
-  @IsString()
-  matchID: string;
-}
-
-export class RequestDrawDTO {
-  @IsNotEmpty()
-  @IsString()
-  matchID: string;
-}
-
-export class RequestSurrenderDTO {
-  @IsNotEmpty()
-  @IsString()
-  matchID: string;
 }

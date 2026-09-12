@@ -10,9 +10,13 @@ import {
 } from '@app/common';
 import { Prisma } from 'src/generated/prisma/client';
 import { randomUUID } from 'crypto';
-import { InviteSession, InviteTicket } from '../interfaces/invite.interface';
+import { InviteTicket } from '../interfaces/invite.interface';
+import { InviteExpirationJob } from '../queues/invite.jobs';
 import { InjectQueue } from '@nestjs/bullmq';
-import { LOBBY_QUEUES } from '../queues/game-queues.constants';
+import {
+  INVITE_EXPIRE_JOB,
+  INVITE_QUEUES,
+} from '../queues/game-queues.constants';
 import { Queue } from 'bullmq';
 import { PlayerRepository } from './player.repository';
 import { OnlinePlayerData } from '../interfaces/player.interface';
@@ -22,8 +26,8 @@ export class LobbyService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly domainEventEmitter: DomainEventEmitterService,
-    @InjectQueue(LOBBY_QUEUES)
-    private readonly lobbyQueues: Queue<InviteSession>,
+    @InjectQueue(INVITE_QUEUES)
+    private readonly inviteQueues: Queue<InviteExpirationJob>,
     private readonly playerRepository: PlayerRepository,
   ) {}
 
@@ -97,11 +101,7 @@ export class LobbyService {
       },
     };
 
-    this.databaseService.message
-      .create({ data: messageData })
-      .catch((error) => {
-        console.log(error);
-      });
+    await this.databaseService.message.create({ data: messageData });
 
     return formattedMessage;
   }
@@ -127,8 +127,8 @@ export class LobbyService {
 
     const inviteID = randomUUID().toString();
 
-    await this.lobbyQueues.add(
-      'expire-invite',
+    await this.inviteQueues.add(
+      INVITE_EXPIRE_JOB,
       {
         inviteID,
         challengerID,
@@ -154,7 +154,7 @@ export class LobbyService {
   }
 
   async resolveInvite(inviteID: string, accepted: boolean): Promise<void> {
-    const foundInvite = await this.lobbyQueues.getJob(inviteID);
+    const foundInvite = await this.inviteQueues.getJob(inviteID);
 
     if (!foundInvite) {
       throw new InviteNotFoundError('Invite not found');
@@ -181,7 +181,7 @@ export class LobbyService {
 
   // Player
 
-  async isPlayerReady(playerID: string, ready: boolean): Promise<void> {
+  async setPlayerStatus(playerID: string, ready: boolean): Promise<void> {
     if (ready) {
       await this.changePlayerStatus(playerID, PlayerStatus.Ready);
     } else {

@@ -41,6 +41,7 @@ export class PlayerController {
     return this.playerService.login(username, password);
   }
 
+  @UseGuards(LoggedInGuard)
   @UseInterceptors(SessionManagementInterceptor)
   @Post('register')
   registerPlayer(

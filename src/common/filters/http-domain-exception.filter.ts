@@ -6,7 +6,7 @@ import {
   FailedTokenValidationError,
   InconsistentTokenInfoError,
   SecretMapEmptyError,
-  ValidationTokenMissingError,
+  TokenNotFoundError,
 } from '../errors/token.errors';
 import {
   InvalidCredentialsError,
@@ -20,10 +20,7 @@ import {
   InviteNotFoundError,
 } from '../errors/lobby.errors';
 import { InputFieldIncorrectError } from '../errors/validation.errors';
-import {
-  InvalidMovementException,
-  MatchNotFoundException,
-} from '../errors/match.errors';
+import { InteractionNotAllowedException } from '../errors/match.errors';
 
 @Catch(DomainError)
 export class HttpDomainExceptionFilter extends BaseExceptionFilter {
@@ -35,13 +32,13 @@ export class HttpDomainExceptionFilter extends BaseExceptionFilter {
     [PlayerIsOfflineError, HttpStatus.NOT_FOUND],
     [PlayerNotFoundError, HttpStatus.NOT_FOUND],
     [InviteNotFoundError, HttpStatus.NOT_FOUND],
-    [ValidationTokenMissingError, HttpStatus.NOT_FOUND],
-    [MatchNotFoundException, HttpStatus.NOT_FOUND],
+    [TokenNotFoundError, HttpStatus.NOT_FOUND],
     [InputFieldIncorrectError, HttpStatus.BAD_REQUEST],
     [InvalidOpponentError, HttpStatus.BAD_REQUEST],
-    [InvalidMovementException, HttpStatus.BAD_REQUEST],
     [PlayerAlreadyLoggedInError, HttpStatus.FORBIDDEN],
     [PlayerConflictError, HttpStatus.CONFLICT],
+    [InteractionNotAllowedException, HttpStatus.FORBIDDEN],
+    [TokenNotFoundError, HttpStatus.NOT_FOUND],
   ]);
 
   catch(error: DomainError, host: ArgumentsHost): void {

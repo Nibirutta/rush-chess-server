@@ -71,9 +71,7 @@ export class PlayerService {
     if (!foundPlayer)
       throw new PlayerNotFoundError('Player does not exist anymore');
 
-    this.tokenService.deleteToken(cookie).catch((error) => {
-      console.log(error);
-    });
+    await this.tokenService.deleteToken(cookie);
 
     const accessToken = await this.tokenService.generateToken(
       {
@@ -106,7 +104,7 @@ export class PlayerService {
       where: { OR: [{ nickname: nickname }, { username: username }] },
     });
 
-    if (hasDuplicateCredentials)
+    if (hasDuplicateCredentials.length > 0)
       throw new PlayerConflictError('Username or nickname unavailable');
 
     const hashedPassword = await bcrypt.hash(password, 10);

@@ -1,6 +1,8 @@
 import { PlayerStatus } from '../enums/player-status.enum';
+import { OngoingMatchData as OnMatchUpdate } from '../interfaces/ongoing-match.interface';
 import { DrawType } from '../types/draw.types';
 import { DOMAIN_EVENTS_PATTERN } from './domain-events.pattern';
+import { Square } from 'chess.js';
 
 export interface OnPlayerStatusChanged {
   playerID: string;
@@ -29,29 +31,15 @@ export interface OnFinishedMatch {
 }
 
 export interface OnPlayerInCheck {
-  playerID: string;
-}
-
-export interface OnThreefoldRepetition {
   matchID: string;
-}
-
-export interface OnMatchStart {
-  matchID: string;
-}
-
-export interface OnOpponentDisconnection {
-  matchID: string;
-  disconnectedPlayer: string;
+  attackers: Square[];
 }
 
 export type DomainEventsMap = {
   [DOMAIN_EVENTS_PATTERN.ON_INVITE_EXPIRED]: OnInviteExpired;
   [DOMAIN_EVENTS_PATTERN.ON_PLAYER_STATUS_CHANGED]: OnPlayerStatusChanged;
   [DOMAIN_EVENTS_PATTERN.ON_MATCH_ACCEPTED]: OnMatchAccepted;
+  [DOMAIN_EVENTS_PATTERN.ON_MATCH_UPDATE]: OnMatchUpdate;
   [DOMAIN_EVENTS_PATTERN.ON_FINISHED_MATCH]: OnFinishedMatch;
   [DOMAIN_EVENTS_PATTERN.ON_PLAYER_IN_CHECK]: OnPlayerInCheck;
-  [DOMAIN_EVENTS_PATTERN.ON_THREEFOLD_REPETITION]: OnThreefoldRepetition;
-  [DOMAIN_EVENTS_PATTERN.ON_MATCH_START]: OnMatchStart;
-  [DOMAIN_EVENTS_PATTERN.ON_OPPONENT_DISCONNECTION]: OnOpponentDisconnection;
 };

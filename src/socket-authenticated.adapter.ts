@@ -5,11 +5,13 @@ import {
   TokenService,
   TokenType,
   InconsistentTokenInfoError,
-  ValidationTokenMissingError,
+  TokenNotFoundError,
   BaseSocket,
   COOKIE_NAMES,
   DecodedAccessToken,
   DecodedSessionToken,
+  LobbyNamespace,
+  MatchNamespace,
 } from '@app/common';
 import { ExtendedError, Server, ServerOptions } from 'socket.io';
 import * as cookie from 'cookie';
@@ -36,7 +38,7 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
       )[COOKIE_NAMES.SESSION_TOKEN];
 
       if (!accessToken || !sessionToken)
-        throw new ValidationTokenMissingError(
+        throw new TokenNotFoundError(
           'Access token or session token or both are missing',
         );
 
@@ -65,8 +67,8 @@ export class SocketAuthenticatedAdapter extends IoAdapter {
       corsOptions,
     });
 
-    server.of('lobby').use(this.validateBeforeConnection);
-    server.of('chess').use(this.validateBeforeConnection);
+    server.of(LobbyNamespace).use(this.validateBeforeConnection);
+    server.of(MatchNamespace).use(this.validateBeforeConnection);
 
     return server;
   }

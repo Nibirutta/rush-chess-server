@@ -1,10 +1,10 @@
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
-import { ChessService } from './chess.service';
+import { MatchService } from './match.service';
 import { DatabaseService, DomainEventEmitterService } from '@app/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('ChessService', () => {
-  let chessService: ChessService;
+  let matchService: MatchService;
   let databaseService: DeepMockProxy<DatabaseService>;
   let domainEventEmitter: DeepMockProxy<DomainEventEmitterService>;
 
@@ -17,7 +17,7 @@ describe('ChessService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ChessService,
+        MatchService,
         {
           provide: DomainEventEmitterService,
           useValue: domainEventEmitter,
@@ -29,7 +29,7 @@ describe('ChessService', () => {
       ],
     }).compile();
 
-    chessService = module.get<ChessService>(ChessService);
+    matchService = module.get<MatchService>(MatchService);
   });
 
   afterEach(() => {
@@ -37,6 +37,6 @@ describe('ChessService', () => {
   });
 
   it('should be defined', () => {
-    expect(chessService).toBeDefined();
+    expect(matchService).toBeDefined();
   });
 });

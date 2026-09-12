@@ -14,6 +14,7 @@ import {
 import {
   FailedTokenValidationError,
   SecretMapEmptyError,
+  TokenNotFoundError,
 } from '../errors/token.errors';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, Token } from 'src/generated/prisma/client';
@@ -159,6 +160,14 @@ export class TokenService {
   }
 
   async deleteToken(token: string): Promise<Token> {
+    const foundToken = await this.databaseService.token.findUnique({
+      where: { token: token },
+    });
+
+    if (!foundToken) {
+      throw new TokenNotFoundError('Token not found');
+    }
+
     return this.databaseService.token.delete({ where: { token: token } });
   }
 

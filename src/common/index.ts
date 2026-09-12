@@ -4,6 +4,7 @@ export * from './contracts/token.dto';
 // Websocket
 export * from './websocket/messages.pattern';
 export * from './websocket/events.pattern';
+export * from './websocket/namespaces.pattern';
 
 // Enums
 export * from './enums/player-status.enum';
@@ -34,6 +35,7 @@ export * from './filters/ws-domain-exception.filter';
 
 // Interfaces
 export * from './interfaces/decoded-token.interface';
+export * from './interfaces/ongoing-match.interface';
 
 // Config
 export * from './config/chess-config.module';

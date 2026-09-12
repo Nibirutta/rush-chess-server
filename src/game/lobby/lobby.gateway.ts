@@ -20,15 +20,16 @@ import {
   LOBBY_MESSAGES,
   OnFinishedMatch,
   BaseSocket,
+  LobbyNamespace,
 } from '@app/common';
 import { Server } from 'socket.io';
 import { LobbyService } from './lobby.service';
 import { SendMessageDTO } from '../dto/message.dto';
 import { InviteResponseDTO, SendInviteDTO } from '../dto/invite.dto';
-import { IsPlayerReadyDTO } from '../dto/lobby.dto';
+import { SetPlayerStatusDTO } from '../dto/lobby.dto';
 
 @WebSocketGateway({
-  namespace: 'lobby',
+  namespace: LobbyNamespace,
 })
 @UsePipes(new ValidationPipe(ValidationOptions))
 @UseFilters(new WsDomainExceptionFilter())
@@ -74,7 +75,7 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const newMessage = await this.lobbyService.createMessage(content, playerID);
 
     if (newMessage) {
-      this.server.emit(LOBBY_MESSAGES.SEND_MESSAGE, {
+      this.server.emit(LOBBY_EVENTS.MESSAGE, {
         message: newMessage,
       });
     }
@@ -131,15 +132,15 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Player
 
-  @SubscribeMessage(LOBBY_MESSAGES.IS_PLAYER_READY)
-  async isPlayerReady(
+  @SubscribeMessage(LOBBY_MESSAGES.SET_PLAYER_STATUS)
+  async setPlayerStatus(
     @ConnectedSocket() client: BaseSocket,
-    @MessageBody() isPlayerReadyDTO: IsPlayerReadyDTO,
+    @MessageBody() setPlayerStatusDTO: SetPlayerStatusDTO,
   ): Promise<void> {
     const { playerID } = client.data;
-    const { ready } = isPlayerReadyDTO;
+    const { ready } = setPlayerStatusDTO;
 
-    await this.lobbyService.isPlayerReady(playerID, ready);
+    await this.lobbyService.setPlayerStatus(playerID, ready);
   }
 
   // Domain Events

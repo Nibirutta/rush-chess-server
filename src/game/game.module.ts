@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { LobbyModule } from './lobby/lobby.module';
-import { ChessModule } from './chess/chess.module';
+import { MatchModule } from './chess/match.module';
 
 @Module({
-  imports: [LobbyModule, ChessModule],
+  imports: [LobbyModule, MatchModule],
 })
 export class GameModule {}

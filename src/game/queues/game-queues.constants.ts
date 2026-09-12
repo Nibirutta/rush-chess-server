@@ -8,6 +8,6 @@ export const MATCH_ABANDONED_JOB = 'match_abandoned_job';
 
 // INVITE
 
-export const LOBBY_QUEUES = 'lobby_queues';
+export const INVITE_QUEUES = 'lobby_queues';
 
 export const INVITE_EXPIRE_JOB = 'invite_expire_job';
