@@ -1,0 +1,22 @@
+# Heavy & unnescessary folders
+node_modules/
+dist/
+src/generated
+
+# System  & Config
+.git
+.gitignore
+.dockerignore
+.prettierrc
+.vscode/
+
+# Environment & Secrets
+.env
+
+#
+test/
+*.spec.ts
+
+# Random
+*.md
+README.md
