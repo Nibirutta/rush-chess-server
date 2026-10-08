@@ -63,9 +63,7 @@ export class MatchGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     await client.join(ongoingMatch.matchID);
 
-    client.emit(MATCH_EVENTS.LOAD_MATCH, {
-      match: ongoingMatch,
-    });
+    client.emit(MATCH_EVENTS.LOAD_MATCH, ongoingMatch);
   }
 
   async handleDisconnect(client: BaseSocket): Promise<void> {
