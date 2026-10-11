@@ -412,10 +412,29 @@ evento, o servidor encerra a conexão. Esse evento não possui payload.
 
 ### Erros
 
+#### Websocket
+
 Erros de domínio são enviados ao socket pelo evento `notify_exception`:
 
 ```json
 {
+  "message": "Mensagem do erro",
+  "error": "NomeDoErro",
+  "timestamp": "2026-01-01T00:00:00.000Z",
+  "details": []
+}
+```
+
+O campo `details` é opcional e aparece quando o erro contém informações
+adicionais de validação.
+
+#### HTTP
+
+Quando os erros de domínio ocorrem em uma requisição HTTP, a estrutura é levemente diferente daquela introduzida acima.
+
+```json
+{
+  "statusCode": 404,
   "message": "Mensagem do erro",
   "error": "NomeDoErro",
   "timestamp": "2026-01-01T00:00:00.000Z",
